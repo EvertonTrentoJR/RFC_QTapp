@@ -8,10 +8,9 @@
 
 1. [Repository Structure](#1-repository-structure)
 2. [Methodology](#2-methodology)
-3. [Dataset](#3-dataset)
-4. [Getting Started](#4-getting-started)
-5. [Dependencies](#5-dependencies)
-6. [Contributors](#6-contributors)
+3. [Getting Started](#4-getting-started)
+4. [Dependencies](#5-dependencies)
+5. [Contributors](#6-contributors)
 
 ---
 
