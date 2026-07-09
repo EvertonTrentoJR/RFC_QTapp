@@ -2,16 +2,6 @@
 
 **PyQt app to control step-motor RFC — Powered by LASII**
 
-This repository contains a modular framework for
-
-The framework provides utilities for:
-
-- Loading and organizing EIS datasets
-- Nyquist and frequency-domain visualization
-- Linear Kramers–Kronig (linKK) validation
-- Equivalent Circuit Model fitting
-- Parameter optimization and evaluation
-
 ---
 
 # 0. Table of Contents
