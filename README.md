@@ -28,15 +28,12 @@ The framework provides utilities for:
 # 1. Repository Structure
 
 ```text
-EIS_fit_PPGQ/
+RFC_QTapp/
 │
 ├── utils/
-│   ├── ECM_utils.py
-│   ├── data_types.py
-│   ├── file_utils.py
-│   ├── fitting_utils.py
-│   └── linKK.py
-├── RFC_QTapp.py
+│   ├── stylesheet.qss
+│   ├── MainWindow_utils.py
+├── RFCControl_main.py
 ├── requirements.txt
 └── .gitignore
 ```
@@ -46,7 +43,9 @@ EIS_fit_PPGQ/
 | Folder/File | Description                                  |
 |---|----------------------------------------------|
 | `utils/` | Core utility functions and framework modules |
-| `RFC_QTapp.py` | Main script for impedance fitting workflow   |
+| `utils/stylesheet.qss` | Stylesheet for the QT application |
+| `utils/MainWindow_utils.py` | Core utility functions for the Main Window |
+| `RFCControl_main.py` | Main script for impedance fitting workflow   |
 | `requirements.txt` | Python dependencies required for the project |
 
 ---
