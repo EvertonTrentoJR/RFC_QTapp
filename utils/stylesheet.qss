@@ -1,0 +1,96 @@
+QMainWindow { background-color: #d7d7d7; }
+QWidget { font-family: "Consolas", "Segoe UI", sans-serif; font-size: 14px; color: #111111; }
+#headerFrame { background-color: #d0d0d0; border-bottom: 1px solid #b5b5b5; }
+#titleLabel { font-size: 30px; font-weight: 500; letter-spacing: 3px; }
+#logoLabel { font-size: 32px; font-weight: bold; background-color: #050505; color: white; border-radius: 4px; padding: 8px 14px; }
+#sidebarFrame { background-color: #d2d2d2; border-right: 1px solid #b8b8b8; }
+QFrame#line1, QFrame#line2 { color: #111111; background-color: #111111; max-height: 2px; min-height: 2px; }
+QPushButton { background-color: #c9c9c9; border: 1px solid #aaaaaa; border-radius: 6px; padding: 12px; text-align: left; font-size: 14px; }
+QPushButton:hover { background-color: #dddddd; }
+QPushButton:pressed { background-color: #999999; }
+QPushButton:checked { background-color: #050505; color: white; border: 1px solid #050505; }
+#btnConnect { background-color: #050505; color: white; font-weight: bold; text-align: center; }
+#btnConnect:hover { background-color: #222222; }
+
+/* ---------- MENU BUTTON STATES ---------- */
+
+#btnRFC:checked,
+#btnAngle:checked,
+#btnParticles:checked {
+    background-color: #707070;
+    color: white;
+    border: 1px solid #5a5a5a;
+    font-weight: bold;
+}
+
+#btnRFC:checked:hover,
+#btnAngle:checked:hover,
+#btnParticles:checked:hover {
+    background-color: #666666;
+}
+
+/* ---------- START / STOP BUTTONS ---------- */
+#btnStart {
+    background-color: #8fbf8f;
+    border: 1px solid #6fa36f;
+    text-align: center;
+    font-weight: bold;
+}
+
+#btnStart:hover {
+    background-color: #9fd09f;
+}
+
+#btnStart:pressed {
+    background-color: #6fa36f;
+}
+
+#btnStop {
+    background-color: #c98989;
+    border: 1px solid #a96b6b;
+    color: #111111;
+    text-align: center;
+    font-weight: bold;
+}
+
+#btnStop:hover {
+    background-color: #d79a9a;
+}
+
+#btnStop:pressed {
+    background-color: #a96b6b;
+}
+
+QComboBox, QLineEdit { background-color: #e2e2e2; border: 1px solid #9f9f9f; border-radius: 6px; padding: 8px; selection-background-color: #111111; selection-color: white; }
+QComboBox:hover, QLineEdit:hover { background-color: #eeeeee; }
+QComboBox::drop-down { border: none; width: 28px; }
+QComboBox::down-arrow { image: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #111111; margin-right: 8px; }
+#mainFrame { background-color: #d7d7d7; }
+#plotFrame { background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #cfcfcf, stop:1 #9f9f9f); border: 1px solid #b0b0b0; border-radius: 10px; }
+#consoleFrame { background-color: #cfcfcf; border: 1px solid #b0b0b0; border-radius: 10px; }
+QPlainTextEdit { background-color: transparent; border: none; font-family: "Consolas"; font-size: 13px; }
+#cardAcc, #cardAng, #cardVeloc, #cardDTime, #cardReps { background-color: #cfcfcf; border: 1px solid #b4b4b4; border-radius: 8px; min-height: 90px; }
+#Acc_label, #Ang_label, #Veloc_label, #DTime_label, #Reps_label { font-size: 13px; font-weight: bold; }
+#Acc_value, #Ang_value, #Veloc_value, #DTime_value, #Reps_value { font-size: 26px; font-weight: bold; }
+#Acc_unit, #Ang_unit, #Veloc_unit, #DTime_unit, #Reps_unit { font-size: 12px; }
+#footerFrame { background-color: #d0d0d0; border-top: 1px solid #b8b8b8; }
+#statusLabel, #readyLabel { font-size: 12px; }
+
+
+QDoubleSpinBox {
+    background-color: #e2e2e2;
+    border: 1px solid #9f9f9f;
+    border-radius: 6px;
+    padding: 6px;
+    color: #111111;
+    min-height: 24px;
+}
+
+QDoubleSpinBox:hover {
+    background-color: #ededed;
+}
+
+QDoubleSpinBox:focus {
+    border: 1px solid #555555;
+    background-color: #f4f4f4;
+}
