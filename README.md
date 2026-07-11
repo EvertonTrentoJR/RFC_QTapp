@@ -1,6 +1,6 @@
 # RockFlow cell Application control
 
-**PyQt app to control step-motor RFC — Powered by LASII**
+**PyQt app to control a step-motor RFC — Powered by LASII**
 
 ---
 
@@ -95,12 +95,9 @@ python -m pip install -r requirements.txt
 The following libraries are required to run this project:
 
 ```python
-PyQt5         # graphical user interface (GUI) framework
+PyQt5         # Graphical user interface (GUI) framework
 pyqt5-tools   # Qt Designer and development tools
-numpy         # numerical computing
-scipy         # scientific computing and optimization
-pandas        # data manipulation and analysis
-matplotlib    # data visualization
+pyserial      # Serial connection tool
 ```
 ---
 
