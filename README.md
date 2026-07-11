@@ -1,6 +1,6 @@
 # RockFlow cell Application control
 
-**PyQt app to control step-motor RFC — Powered by LASII**
+**PyQt app to control a step-motor RFC — Powered by LASII**
 
 ---
 
