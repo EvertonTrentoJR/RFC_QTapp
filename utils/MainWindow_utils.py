@@ -12,6 +12,7 @@ with open(_STYLE_PATH, "r", encoding="utf-8") as f:
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
+        self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1201, 770)
         MainWindow.setStyleSheet(STYLEsheet)
@@ -318,8 +319,7 @@ class Ui_MainWindow(object):
         self.logoLabel.setText(_translate("MainWindow", "RFC"))
         self.groupLabel.setText(_translate("MainWindow", "StepperMotor"))
         self.titleLabel.setText(_translate("MainWindow", " CONTROL PANEL"))
-        self.creditLabel.setText(_translate("MainWindow","Powered by LASII | Debugged by AI")
-        )
+        self.creditLabel.setText(_translate("MainWindow","Powered by LASII | Debugged by AI"))
         self.menuTitle.setText(_translate("MainWindow", "TEST SELECTION"))
         self.btnRFC.setText(_translate("MainWindow", "  ∿   RFC"))
         self.btnAngle.setText(_translate("MainWindow", "  ∠   ANGLE"))
@@ -511,10 +511,7 @@ class Ui_MainWindow(object):
     def sendSerialData(self, data):
 
         if self.serial is None or not self.serial.is_open:
-            self.consoleOutput.appendPlainText(
-                "TX error: Serial port is not connected."
-            )
-
+            QtWidgets.QMessageBox.warning(self.MainWindow,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
             return False
 
         data = str(data).strip()
@@ -540,12 +537,22 @@ class Ui_MainWindow(object):
             return False
 
     def event_start_clicked(self):
-        command = self.commandLine.text().strip()
-        self.sendSerialData(command)
-
-        self.btnStop.setEnabled(True)
-        self.btnStart.setEnabled(False)
+        if self.serial is None or not self.serial.is_open:
+            QtWidgets.QMessageBox.warning(self.MainWindow,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
+            return False
+        elif self.currentMode is None:
+            QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (RFC, Angle or Home) before starting.")
+            return
+        else:
+            startcommand = self.commandLine.text().strip()
+            self.sendSerialData(startcommand)
+            self.btnStop.setEnabled(True)
+            self.btnStart.setEnabled(False)
 
     def event_stop_clicked(self):
+        self.commandLine.setText("X")
+        stopcommand = self.commandLine.text().strip()
+        self.sendSerialData(stopcommand)
         self.btnStop.setEnabled(False)
         self.btnStart.setEnabled(True)
+        self.commandLine.clear()
