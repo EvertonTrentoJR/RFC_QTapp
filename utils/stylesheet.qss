@@ -16,17 +16,11 @@ QPushButton:checked { background-color: #050505; color: white; border: 1px solid
 
 #btnRFC:checked,
 #btnAngle:checked,
-#btnParticles:checked {
+#btnHome:checked {
     background-color: #707070;
     color: white;
     border: 1px solid #5a5a5a;
     font-weight: bold;
-}
-
-#btnRFC:checked:hover,
-#btnAngle:checked:hover,
-#btnParticles:checked:hover {
-    background-color: #666666;
 }
 
 /* ---------- START / STOP BUTTONS ---------- */
@@ -70,6 +64,7 @@ QComboBox::down-arrow { image: none; border-left: 5px solid transparent; border-
 #consoleFrame { background-color: #cfcfcf; border: 1px solid #b0b0b0; border-radius: 10px; }
 QPlainTextEdit { background-color: transparent; border: none; font-family: "Consolas"; font-size: 13px; }
 #cardAcc, #cardAng, #cardVeloc, #cardDTime, #cardReps { background-color: #cfcfcf; border: 1px solid #b4b4b4; border-radius: 8px; min-height: 90px; }
+#cardAcc:disabled,#cardAng:disabled,#cardVeloc:disabled,#cardDTime:disabled,#cardReps:disabled {background-color: #b8b8b8; border: 1px solid #a0a0a0;}
 #Acc_label, #Ang_label, #Veloc_label, #DTime_label, #Reps_label { font-size: 13px; font-weight: bold; }
 #Acc_value, #Ang_value, #Veloc_value, #DTime_value, #Reps_value { font-size: 26px; font-weight: bold; }
 #Acc_unit, #Ang_unit, #Veloc_unit, #DTime_unit, #Reps_unit { font-size: 12px; }
