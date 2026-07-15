@@ -15,7 +15,6 @@ ENV/
 
 # PyInstaller build files
 build/
-dist/
 *.spec
 
 # Logs
@@ -35,3 +34,5 @@ Thumbs.db
 # Test/cache folders
 .pytest_cache/
 .mypy_cache/
+
+testQt/
