@@ -90,6 +90,12 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
 ```
 
+## Executable
+
+This project can be converted into a standalone Windows executable using **PyInstaller**.
+```bash
+pyinstaller --onefile --windowed --name StepperMotorControl --add-data "utils/stylesheet.qss;utils" RFCControl_main.py
+```
 # 5. Dependencies
 
 The following libraries are required to run this project:
@@ -98,6 +104,7 @@ The following libraries are required to run this project:
 PyQt5         # Graphical user interface (GUI) framework
 pyqt5-tools   # Qt Designer and development tools
 pyserial      # Serial connection tool
+pyinstaller   # Tool to generate standalone executable files
 ```
 ---
 

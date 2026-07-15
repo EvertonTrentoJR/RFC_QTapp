@@ -14,7 +14,7 @@ QPushButton:checked { background-color: #050505; color: white; border: 1px solid
 
 /* ---------- MENU BUTTON STATES ---------- */
 
-#btnRFC:checked,
+#btnMove:checked,
 #btnAngle:checked,
 #btnHome:checked {
     background-color: #707070;

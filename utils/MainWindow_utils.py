@@ -1,6 +1,7 @@
 # import relevant packages
 from PyQt5 import QtCore, QtGui, QtWidgets
 from pathlib import Path
+from numpy.ma.core import angle
 from serial import Serial, SerialException
 from serial.tools import list_ports
 
@@ -12,6 +13,15 @@ with open(_STYLE_PATH, "r", encoding="utf-8") as f:
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
+
+        # init variables
+        self.veloc_max = 20
+        self.veloc_min = 0.1
+        self.acc_max = 0.5
+        self.acc_min = 0.01
+        self.ang_max = 90
+        self.ang_min = -90
+
         self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1201, 770)
@@ -68,10 +78,10 @@ class Ui_MainWindow(object):
         self.menuTitle = QtWidgets.QLabel(self.sidebarFrame)
         self.menuTitle.setObjectName("menuTitle")
         self.verticalLayout_sidebar.addWidget(self.menuTitle)
-        self.btnRFC = QtWidgets.QPushButton(self.sidebarFrame)
-        self.btnRFC.setCheckable(True)
-        self.btnRFC.setObjectName("btnRFC")
-        self.verticalLayout_sidebar.addWidget(self.btnRFC)
+        self.btnMove = QtWidgets.QPushButton(self.sidebarFrame)
+        self.btnMove.setCheckable(True)
+        self.btnMove.setObjectName("btnMove")
+        self.verticalLayout_sidebar.addWidget(self.btnMove)
         self.btnAngle = QtWidgets.QPushButton(self.sidebarFrame)
         self.btnAngle.setCheckable(True)
         self.btnAngle.setObjectName("btnAngle")
@@ -149,9 +159,10 @@ class Ui_MainWindow(object):
         self.cardLayout1.addWidget(self.Ang_label, 0, QtCore.Qt.AlignTop)
         self.Ang_value = QtWidgets.QDoubleSpinBox(self.cardAng)
         self.Ang_value.setObjectName("Ang_value")
-        self.Ang_value.setDecimals(0)
-        self.Ang_value.setSingleStep(1)
-        self.Ang_value.setValue(45)
+        self.Ang_value.setRange(-90, 90)
+        self.Ang_value.setSingleStep(0.01)
+        self.Ang_value.setValue(30)
+        self.Ang_value.setMaximum(self.ang_max)
         self.cardLayout1.addWidget(self.Ang_value, 0, QtCore.Qt.AlignHCenter|QtCore.Qt.AlignTop)
         self.Ang_unit = QtWidgets.QLabel(self.cardAng)
         self.Ang_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -170,9 +181,11 @@ class Ui_MainWindow(object):
         self.cardLayout2.addWidget(self.Veloc_label, 0, QtCore.Qt.AlignHCenter|QtCore.Qt.AlignTop)
         self.Veloc_value = QtWidgets.QDoubleSpinBox(self.cardVeloc)
         self.Veloc_value.setObjectName("Veloc_value")
-        self.Veloc_value.setDecimals(0)
-        self.Veloc_value.setSingleStep(1)
-        self.Veloc_value.setValue(45)
+        self.Veloc_value.setDecimals(1)
+        self.Veloc_value.setSingleStep(0.1)
+        self.Veloc_value.setValue(10)
+        self.Veloc_value.setMaximum(self.veloc_max)
+        self.Veloc_value.setMinimum(self.veloc_min)
         self.cardLayout2.addWidget(self.Veloc_value, 0, QtCore.Qt.AlignHCenter)
         self.Veloc_unit = QtWidgets.QLabel(self.cardVeloc)
         self.Veloc_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -190,8 +203,10 @@ class Ui_MainWindow(object):
         self.cardLayout3.addWidget(self.Acc_label, 0, QtCore.Qt.AlignHCenter|QtCore.Qt.AlignTop)
         self.Acc_value = QtWidgets.QDoubleSpinBox(self.cardAcc)
         self.Acc_value.setObjectName("Acc_value")
+        self.Acc_value.setDecimals(2)
         self.Acc_value.setSingleStep(0.01)
         self.Acc_value.setValue(0.33)
+        self.Acc_value.setMaximum(self.acc_max)
         self.cardLayout3.addWidget(self.Acc_value, 0, QtCore.Qt.AlignHCenter)
         self.Acc_unit = QtWidgets.QLabel(self.cardAcc)
         self.Acc_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -203,15 +218,28 @@ class Ui_MainWindow(object):
         self.cardReps.setObjectName("cardReps")
         self.cardLayout4 = QtWidgets.QVBoxLayout(self.cardReps)
         self.cardLayout4.setObjectName("cardLayout4")
+
         self.Reps_label = QtWidgets.QLabel(self.cardReps)
         self.Reps_label.setAlignment(QtCore.Qt.AlignCenter)
         self.Reps_label.setObjectName("Reps_label")
         self.cardLayout4.addWidget(self.Reps_label, 0, QtCore.Qt.AlignHCenter|QtCore.Qt.AlignTop)
+        self.repsRadioLayout = QtWidgets.QHBoxLayout()
+        self.repsRadioLayout.setObjectName("repsRadioLayout")
+        self.radioRepsFixed = QtWidgets.QRadioButton(self.cardReps)
+        self.radioRepsFixed.setObjectName("radioRepsFixed")
+        self.radioRepsFixed.setText("FIXED")
+        self.radioRepsFixed.setChecked(True)
+        self.radioRepsInfinite = QtWidgets.QRadioButton(self.cardReps)
+        self.radioRepsInfinite.setObjectName("radioRepsInfinite")
+        self.radioRepsInfinite.setText("∞ INF")
+        self.repsRadioLayout.addWidget(self.radioRepsFixed)
+        self.repsRadioLayout.addWidget(self.radioRepsInfinite)
+        self.cardLayout4.addLayout(self.repsRadioLayout)
         self.Reps_value = QtWidgets.QDoubleSpinBox(self.cardReps)
         self.Reps_value.setObjectName("Reps_value")
         self.Reps_value.setDecimals(0)
         self.Reps_value.setSingleStep(1)
-        self.Reps_value.setValue(45)
+        self.Reps_value.setValue(30)
         self.cardLayout4.addWidget(self.Reps_value, 0, QtCore.Qt.AlignHCenter)
         self.Reps_unit = QtWidgets.QLabel(self.cardReps)
         self.Reps_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -232,15 +260,13 @@ class Ui_MainWindow(object):
         self.DTime_value.setObjectName("DTime_value")
         self.DTime_value.setDecimals(0)
         self.DTime_value.setSingleStep(1)
-        self.DTime_value.setValue(60)
+        self.DTime_value.setValue(0)
         self.cardLayout5.addWidget(self.DTime_value, 0, QtCore.Qt.AlignHCenter)
         self.DTime_unit = QtWidgets.QLabel(self.cardDTime)
         self.DTime_unit.setAlignment(QtCore.Qt.AlignCenter)
         self.DTime_unit.setObjectName("DTime_unit")
         self.cardLayout5.addWidget(self.DTime_unit)
         self.cardsLayout.addWidget(self.cardDTime)
-
-
 
         self.verticalLayout_main.addLayout(self.cardsLayout)
         self.consoleFrame = QtWidgets.QFrame(self.mainFrame)
@@ -252,6 +278,7 @@ class Ui_MainWindow(object):
         self.consoleOutput = QtWidgets.QPlainTextEdit(self.consoleFrame)
         self.consoleOutput.setReadOnly(True)
         self.consoleOutput.setObjectName("consoleOutput")
+        self.consoleOutput.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         self.commandLine = QtWidgets.QLineEdit(self.consoleFrame)
         self.commandLine.setObjectName("commandLine")
         self.commandLine.setPlaceholderText("Type a command and press Start...")
@@ -285,7 +312,9 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    # init Events
+    # init Events and variables
+        self.variableFactor = None
+
         self.event_refreshports_clicked()
         self.serial = None
         self.currentMode = None
@@ -297,14 +326,15 @@ class Ui_MainWindow(object):
         self.serialTimer.timeout.connect(self.readSerialData)
 
     # Events
-        self.Ang_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
-        self.Veloc_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
-        self.Acc_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
+        self.Ang_value.valueChanged.connect(self.paramCalc)
+        self.Veloc_value.valueChanged.connect(self.paramCalc)
+        self.Acc_value.valueChanged.connect(self.paramCalc)
         self.DTime_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
         self.Reps_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
-
+        self.radioRepsFixed.toggled.connect(self.event_reps_mode_changed)
+        self.radioRepsInfinite.toggled.connect(self.event_reps_mode_changed)
     # Button events
-        self.btnRFC.clicked.connect(self.event_rfc_clicked)
+        self.btnMove.clicked.connect(self.event_movement_clicked)
         self.btnAngle.clicked.connect(self.event_angle_clicked)
         self.btnHome.clicked.connect(self.event_home_clicked)
 
@@ -321,7 +351,7 @@ class Ui_MainWindow(object):
         self.titleLabel.setText(_translate("MainWindow", " CONTROL PANEL"))
         self.creditLabel.setText(_translate("MainWindow","Powered by LASII | Debugged by AI"))
         self.menuTitle.setText(_translate("MainWindow", "TEST SELECTION"))
-        self.btnRFC.setText(_translate("MainWindow", "  ∿   RFC"))
+        self.btnMove.setText(_translate("MainWindow", "  ∿   MOTION"))
         self.btnAngle.setText(_translate("MainWindow", "  ∠   ANGLE"))
         self.btnHome.setText(_translate("MainWindow", "  ⌂   HOME"))
         self.connectionTitle.setText(_translate("MainWindow", "COM CONNECTION"))
@@ -346,8 +376,8 @@ class Ui_MainWindow(object):
         self.Reps_label.setText(_translate("MainWindow", "Repetition"))
         self.statusLabel.setText(_translate("MainWindow", "●  STATUS: DISCONNECTED"))
 
-    def event_rfc_clicked(self):
-        self.setMode("rfc")
+    def event_movement_clicked(self):
+        self.setMode("motion")
 
     def event_angle_clicked(self):
         self.setMode("angle")
@@ -361,25 +391,27 @@ class Ui_MainWindow(object):
 
         normal = "background-color:#c9c9c9; color:black; border: 1px solid #aaaaaa;"
         selected = "background-color:#707070; color:white; border: 1px solid #5a5a5a; font-weight: bold;"
-        self.btnRFC.setStyleSheet(normal)
+        self.btnMove.setStyleSheet(normal)
         self.btnAngle.setStyleSheet(normal)
         self.btnHome.setStyleSheet(normal)
 
-        if mode == "rfc":
-            self.cardAcc.setEnabled(True)
-            self.cardAng.setEnabled(True)
-            self.cardVeloc.setEnabled(True)
-            self.cardDTime.setEnabled(False)
-            self.cardReps.setEnabled(False)
-            self.btnRFC.setStyleSheet(selected)
-
-        elif mode == "angle":
+        if mode == "motion":
             self.cardAcc.setEnabled(True)
             self.cardAng.setEnabled(True)
             self.cardVeloc.setEnabled(True)
             self.cardDTime.setEnabled(True)
             self.cardReps.setEnabled(True)
+            self.btnMove.setStyleSheet(selected)
+
+        elif mode == "angle":
+            self.cardAng.setEnabled(True)
+            self.cardDTime.setEnabled(False)
+            self.cardReps.setEnabled(False)
             self.btnAngle.setStyleSheet(selected)
+            self.Veloc_value.setValue(2)
+            self.Acc_value.setValue(0.33)
+            self.cardAcc.setEnabled(False)
+            self.cardVeloc.setEnabled(False)
 
         elif mode == "home":
             self.cardAcc.setEnabled(False)
@@ -394,7 +426,8 @@ class Ui_MainWindow(object):
 
     def updateCommandLine(self, mode):
 
-        global command
+        if mode is None:
+            return
 
         if self.serial is None:
             self.statusLabel.setText(f"MODE: {self.currentMode} Selected. ●  STATUS: DISCONNECTED")
@@ -402,29 +435,31 @@ class Ui_MainWindow(object):
             self.statusLabel.setText(
                 f"MODE: {self.currentMode} Selected. ●  STATUS: CONNECTED to {self.COMport} @ {self.COMbaudrate} baud.")
 
+
         if mode == "home":
             self.commandLine.setText("home")
-
             return
 
-        elif mode == "rfc":
+        elif mode == "motion":
+
+            if self.radioRepsInfinite.isChecked():
+                self.Reps_value.setValue(0)
 
             command = (
-                f"R,"
-                f"{int(self.Ang_value.value())},"
-                f"{int(self.Veloc_value.value())},"
-                f"{self.Acc_value.value()}"
+                f"M,"
+                f"{self.Ang_value.value():.2f},"
+                f"{self.Veloc_value.value():.2f},"
+                f"{self.Acc_value.value():.2f},"
+                f"{int(self.Reps_value.value())},"
+                f"{int(self.DTime_value.value())}"
             )
 
         elif mode == "angle":
-
             command = (
                 f"A,"
-                f"{int(self.Ang_value.value())},"
-                f"{int(self.Veloc_value.value())},"
-                f"{self.Acc_value.value()},"
-                f"{int(self.Reps_value.value())},"
-                f"{int(self.DTime_value.value())}"
+                f"{self.Ang_value.value():.2f},"
+                f"{self.Veloc_value.value():.2f},"
+                f"{self.Acc_value.value():.2f}"
             )
 
         self.commandLine.setText(command)
@@ -541,7 +576,7 @@ class Ui_MainWindow(object):
             QtWidgets.QMessageBox.warning(self.MainWindow,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
             return False
         elif self.currentMode is None:
-            QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (RFC, Angle or Home) before starting.")
+            QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (Motion, Angle or Home) before starting.")
             return
         else:
             startcommand = self.commandLine.text().strip()
@@ -556,3 +591,36 @@ class Ui_MainWindow(object):
         self.btnStop.setEnabled(False)
         self.btnStart.setEnabled(True)
         self.commandLine.clear()
+
+    def paramCalc(self):
+
+        if self.currentMode is angle:
+            return True
+        velocity = self.Veloc_value.value()
+
+        if velocity == 0:
+            return False
+
+        self.variableFactor = (self.Acc_value.value()* abs(self.Ang_value.value())* 8) / velocity
+
+        if self.variableFactor >= 1:
+            self.updateCommandLine(self.currentMode)
+        else:
+            QtWidgets.QMessageBox.warning(self.MainWindow,"Invalid Parameters",
+                "The selected parameters generate an invalid movement.\n"
+            )
+            return False
+
+    def event_reps_mode_changed(self):
+
+        if self.radioRepsInfinite.isChecked():
+
+            self.Reps_value.setValue(0)
+            self.Reps_value.setEnabled(False)
+
+        else:
+            self.Reps_value.setEnabled(True)
+            if self.Reps_value.value() == 0:
+                self.Reps_value.setValue(30)
+
+        self.updateCommandLine(self.currentMode)
