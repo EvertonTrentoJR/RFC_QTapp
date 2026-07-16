@@ -325,6 +325,10 @@ class Ui_MainWindow(object):
         self.serialTimer.setInterval(50)
         self.serialTimer.timeout.connect(self.readSerialData)
 
+        self.rxBuffer = ""
+        self.pendingCommand = None
+        self.waitingEcho = False
+
     # Events
         self.Ang_value.valueChanged.connect(self.paramCalc)
         self.Veloc_value.valueChanged.connect(self.paramCalc)
@@ -437,7 +441,7 @@ class Ui_MainWindow(object):
 
 
         if mode == "home":
-            self.commandLine.setText("home")
+            self.commandLine.setText("HOME")
             return
 
         elif mode == "motion":
@@ -523,17 +527,45 @@ class Ui_MainWindow(object):
             return
 
         try:
-            while self.serial.in_waiting > 0:
+            data = self.serial.read(self.serial.in_waiting).decode(
+                "utf-8",
+                errors="replace"
+            )
 
-                received = self.serial.readline().decode(
-                    "utf-8",
-                    errors="replace"
-                ).strip()
+            if not data:
+                return
 
-                if received:
-                    self.consoleOutput.appendPlainText(
-                        f"RX: {received}"
-                    )
+            self.rxBuffer += data
+
+            while "\n" in self.rxBuffer:
+                line, self.rxBuffer = self.rxBuffer.split("\n", 1)
+                line = line.rstrip("\r").strip()
+
+                if not line:
+                    continue
+
+                self.consoleOutput.appendPlainText(f"RX: {line}")
+
+                # Echo check
+                if self.waitingEcho:
+
+                    if line == self.pendingCommand:
+
+                        self.serial.write(b"OK\n")
+
+                        self.consoleOutput.appendPlainText("TX: OK")
+
+                        self.waitingEcho = False
+                        self.pendingCommand = None
+
+                    else:
+
+                        QtWidgets.QMessageBox.warning(self.MainWindow, "Echo Mismatch",
+                        "The command returned by the hardware does not match the command sent.\n\n"
+                        "The command was rejected for safety.")
+
+                        self.waitingEcho = False
+                        self.pendingCommand = None
 
         except SerialException as error:
 
@@ -555,11 +587,13 @@ class Ui_MainWindow(object):
             return False
 
         try:
+            self.pendingCommand = data
+            self.waitingEcho = True
+
             self.serial.write((data + "\n").encode("utf-8"))
 
-            self.consoleOutput.appendPlainText(
-                f"TX: {data}"
-            )
+            self.consoleOutput.appendPlainText(f"TX: {data}")
+            self.consoleOutput.appendPlainText("Waiting for echo confirmation...")
 
             return True
 
@@ -590,7 +624,7 @@ class Ui_MainWindow(object):
         self.sendSerialData(stopcommand)
         self.btnStop.setEnabled(False)
         self.btnStart.setEnabled(True)
-        self.commandLine.clear()
+        self.updateCommandLine(self.currentMode)
 
     def paramCalc(self):
 
