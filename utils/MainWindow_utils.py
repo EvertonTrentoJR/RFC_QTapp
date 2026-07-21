@@ -441,7 +441,7 @@ class Ui_MainWindow(object):
 
 
         if mode == "home":
-            self.commandLine.setText("HOME")
+            self.commandLine.setText("H")
             return
 
         elif mode == "motion":
