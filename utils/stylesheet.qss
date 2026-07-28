@@ -55,6 +55,22 @@ QPushButton:checked { background-color: #050505; color: white; border: 1px solid
     background-color: #a96b6b;
 }
 
+#btnSaveCSV {
+    background-color: #d6b85a;
+    border: 1px solid #b99a3f;
+    color: #111111;
+    text-align: center;
+    font-weight: bold;
+}
+
+#btnSaveCSV:hover {
+    background-color: #e3c86a;
+}
+
+#btnSaveCSV:pressed {
+    background-color: #b99a3f;
+}
+
 QComboBox, QLineEdit { background-color: #e2e2e2; border: 1px solid #9f9f9f; border-radius: 6px; padding: 8px; selection-background-color: #111111; selection-color: white; }
 QComboBox:hover, QLineEdit:hover { background-color: #eeeeee; }
 QComboBox::drop-down { border: none; width: 28px; }

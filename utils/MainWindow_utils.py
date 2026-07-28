@@ -4,7 +4,7 @@ from pathlib import Path
 from numpy.ma.core import angle
 from serial import Serial, SerialException
 from serial.tools import list_ports
-
+import time
 # Load the stylesheet once when this module is imported
 _STYLE_PATH = Path(__file__).parent / "stylesheet.qss"
 
@@ -135,6 +135,17 @@ class Ui_MainWindow(object):
         self.btnStop.setEnabled(False)
         self.btnStop.setObjectName("btnStop")
         self.verticalLayout_sidebar.addWidget(self.btnStop)
+
+        self.btnSaveCSV = QtWidgets.QPushButton(self.sidebarFrame)
+        self.btnSaveCSV.setObjectName("btnSaveCSV")
+        self.verticalLayout_sidebar.addWidget(self.btnSaveCSV)
+
+        self.statusCSV = QtWidgets.QLabel(self.sidebarFrame)
+        self.statusCSV.setObjectName("statusCSV")
+        self.statusCSV.setText("No CSV file selected")
+        self.statusCSV.setWordWrap(True)
+        self.verticalLayout_sidebar.addWidget(self.statusCSV)
+
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_sidebar.addItem(spacerItem2)
         self.horizontalLayout_body.addWidget(self.sidebarFrame)
@@ -329,6 +340,12 @@ class Ui_MainWindow(object):
         self.pendingCommand = None
         self.waitingEcho = False
 
+        self.csvFilePath = None
+        self.csvSavingEnabled = False
+        self.csvHeader = False
+
+        self.stopRequested = False
+
     # Events
         self.Ang_value.valueChanged.connect(self.paramCalc)
         self.Veloc_value.valueChanged.connect(self.paramCalc)
@@ -337,15 +354,16 @@ class Ui_MainWindow(object):
         self.Reps_value.valueChanged.connect( lambda: self.updateCommandLine(self.currentMode))
         self.radioRepsFixed.toggled.connect(self.event_reps_mode_changed)
         self.radioRepsInfinite.toggled.connect(self.event_reps_mode_changed)
+
     # Button events
         self.btnMove.clicked.connect(self.event_movement_clicked)
         self.btnAngle.clicked.connect(self.event_angle_clicked)
         self.btnHome.clicked.connect(self.event_home_clicked)
-
         self.btnRefreshPorts.clicked.connect(self.event_refreshports_clicked)
         self.btnConnect.clicked.connect(self.event_connectport_clicked)
         self.btnStart.clicked.connect(self.event_start_clicked)
         self.btnStop.clicked.connect(self.event_stop_clicked)
+        self.btnSaveCSV.clicked.connect(self.event_savecsv_clicked)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -364,11 +382,13 @@ class Ui_MainWindow(object):
         self.btnRefreshPorts.setToolTip(_translate("MainWindow", "Refresh COM ports"))
         self.btnRefreshPorts.setText(_translate("MainWindow", "↻ refresh"))
         self.baudLabel.setText(_translate("MainWindow", "Baud rate"))
-        self.lineBaudrate.setText(_translate("MainWindow", "9600"))
+        self.lineBaudrate.setText(_translate("MainWindow", "2000000"))
         self.btnConnect.setText(_translate("MainWindow", "⛓  CONNECT"))
         self.controlTitle.setText(_translate("MainWindow", "CONTROL"))
         self.btnStart.setText(_translate("MainWindow", "▷  START"))
         self.btnStop.setText(_translate("MainWindow", "■  STOP"))
+        self.btnSaveCSV.setText(_translate("MainWindow", "🗀 SAVE .csv"))
+        self.statusCSV.setText(_translate("MainWindow", "No CSV file selected."))
         self.Veloc_label.setText(_translate("MainWindow", " Velocity"))
         self.Veloc_unit.setText(_translate("MainWindow", "RPM"))
         self.Acc_label.setText(_translate("MainWindow", "Acceleration"))
@@ -526,6 +546,9 @@ class Ui_MainWindow(object):
         if not self.serial.is_open:
             return
 
+        if self.stopRequested:
+            return
+
         try:
             data = self.serial.read(self.serial.in_waiting).decode(
                 "utf-8",
@@ -552,11 +575,11 @@ class Ui_MainWindow(object):
                     if line == self.pendingCommand:
 
                         self.serial.write(b"OK\n")
-
                         self.consoleOutput.appendPlainText("TX: OK")
 
                         self.waitingEcho = False
                         self.pendingCommand = None
+                        self.csvSavingEnabled = True
 
                     else:
 
@@ -566,13 +589,14 @@ class Ui_MainWindow(object):
 
                         self.waitingEcho = False
                         self.pendingCommand = None
+                        self.csvSavingEnabled = False
+
+                if self.csvSavingEnabled and self.csvFilePath:
+                    self.startSavingterminal(line)
 
         except SerialException as error:
 
-            self.consoleOutput.appendPlainText(
-                f"Serial reading error: {error}"
-            )
-
+            self.consoleOutput.appendPlainText(f"Serial reading error: {error}")
             self.serialTimer.stop()
 
     def sendSerialData(self, data):
@@ -593,6 +617,10 @@ class Ui_MainWindow(object):
             self.serial.write((data + "\n").encode("utf-8"))
 
             self.consoleOutput.appendPlainText(f"TX: {data}")
+
+            if self.stopRequested:
+                return
+
             self.consoleOutput.appendPlainText("Waiting for echo confirmation...")
 
             return True
@@ -613,12 +641,13 @@ class Ui_MainWindow(object):
             QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (Motion, Angle or Home) before starting.")
             return
         else:
-            startcommand = self.commandLine.text().strip()
-            self.sendSerialData(startcommand)
+            self.startcommand = self.commandLine.text().strip()
+            self.sendSerialData(self.startcommand)
             self.btnStop.setEnabled(True)
             self.btnStart.setEnabled(False)
 
     def event_stop_clicked(self):
+        self.stopRequested = True
         self.commandLine.setText("X")
         stopcommand = self.commandLine.text().strip()
         self.sendSerialData(stopcommand)
@@ -658,3 +687,77 @@ class Ui_MainWindow(object):
                 self.Reps_value.setValue(30)
 
         self.updateCommandLine(self.currentMode)
+
+    def startSavingterminal(self, line):
+
+        parts = line.split(",")
+
+        if len(parts) < 3:
+            return
+
+        timestamp = parts[1].strip()
+        position = parts[2].strip()
+
+        csv_line = f"{timestamp},{position}\n"
+        self.machinetime = int(time.time())
+        try:
+            if not self.csvHeader:
+
+                with open(self.csvFilePath, "w", encoding="utf-8") as file:
+                    file.write(f"Command: {self.startcommand}\n")
+                    file.write(f"Time: {self.machinetime}\n")
+                    file.write("timestamp,position\n")
+                    file.write(csv_line)
+
+                self.csvHeader = True
+            else:
+                with open(self.csvFilePath, "a", encoding="utf-8") as file:
+                    file.write(csv_line)
+            return
+
+        except Exception as error:
+
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
+            self.csvHeader = False
+
+            QtWidgets.QMessageBox.warning(
+                self.MainWindow,
+                "CSV File Error",
+                f"Could not save data to the CSV file.\n\n{error}"
+            )
+            return
+
+    def event_savecsv_clicked(self):
+
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.MainWindow,
+            "Save CSV File",
+            "",
+            "CSV Files (*.csv)"
+        )
+
+        if not file_path:
+            self.statusCSV.setText("No CSV file selected")
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
+            return
+
+        if not file_path.lower().endswith(".csv"):
+            file_path += ".csv"
+
+        try:
+            open(file_path, "w", encoding="utf-8").close()
+            self.csvFilePath = file_path
+            self.csvSavingEnabled = True
+            self.statusCSV.setText(file_path)
+
+        except Exception as error:
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
+
+            QtWidgets.QMessageBox.warning(
+                self.MainWindow,
+                "CSV File Error",
+                f"Could not create the CSV file.\n\n{error}"
+            )
