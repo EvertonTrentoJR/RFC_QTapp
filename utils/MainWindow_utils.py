@@ -706,7 +706,7 @@ class Ui_MainWindow(object):
                 with open(self.csvFilePath, "w", encoding="utf-8") as file:
                     file.write(f"Command: {self.startcommand}\n")
                     file.write(f"Time: {self.machinetime}\n")
-                    file.write("timestamp,position\n")
+                    file.write("Position,Timestamp\n")
                     file.write(csv_line)
 
                 self.csvHeader = True

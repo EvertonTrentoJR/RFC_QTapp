@@ -281,7 +281,7 @@ void mov_function(float degrees_f, float vel_max, float acel) { // Função para
     } 
     tempoAnterior = micros(); // Zera o cronômetro
   }
-  /*for(int i = 0; i < max_timestamps; i++) {
+  for(int i = 0; i < max_timestamps; i++) {
     Serial.print("t,");
     if (direction == 0){
       ang_abs = ang_abs+(1.0/10.0);
@@ -292,7 +292,7 @@ void mov_function(float degrees_f, float vel_max, float acel) { // Função para
     }
     Serial.print(",");
     Serial.println(timestamps[i]);
-  }*/
+  }
 }
 
 
