@@ -251,6 +251,7 @@ class Ui_MainWindow(object):
         self.Reps_value.setDecimals(0)
         self.Reps_value.setSingleStep(1)
         self.Reps_value.setValue(30)
+        self.Reps_value.setMaximum(999)
         self.cardLayout4.addWidget(self.Reps_value, 0, QtCore.Qt.AlignHCenter)
         self.Reps_unit = QtWidgets.QLabel(self.cardReps)
         self.Reps_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -272,6 +273,7 @@ class Ui_MainWindow(object):
         self.DTime_value.setDecimals(0)
         self.DTime_value.setSingleStep(1)
         self.DTime_value.setValue(0)
+        self.DTime_value.setMaximum(999)
         self.cardLayout5.addWidget(self.DTime_value, 0, QtCore.Qt.AlignHCenter)
         self.DTime_unit = QtWidgets.QLabel(self.cardDTime)
         self.DTime_unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -343,8 +345,6 @@ class Ui_MainWindow(object):
         self.csvFilePath = None
         self.csvSavingEnabled = False
         self.csvHeader = False
-
-        self.stopRequested = False
 
     # Events
         self.Ang_value.valueChanged.connect(self.paramCalc)
@@ -475,7 +475,7 @@ class Ui_MainWindow(object):
                 f"{self.Veloc_value.value():.2f},"
                 f"{self.Acc_value.value():.2f},"
                 f"{int(self.Reps_value.value())},"
-                f"{int(self.DTime_value.value())}"
+                f"{int(self.DTime_value.value()*1000)}"
             )
 
         elif mode == "angle":
@@ -544,9 +544,6 @@ class Ui_MainWindow(object):
             return
 
         if not self.serial.is_open:
-            return
-
-        if self.stopRequested:
             return
 
         try:
@@ -618,9 +615,6 @@ class Ui_MainWindow(object):
 
             self.consoleOutput.appendPlainText(f"TX: {data}")
 
-            if self.stopRequested:
-                return
-
             self.consoleOutput.appendPlainText("Waiting for echo confirmation...")
 
             return True
@@ -647,10 +641,11 @@ class Ui_MainWindow(object):
             self.btnStart.setEnabled(False)
 
     def event_stop_clicked(self):
-        self.stopRequested = True
-        self.commandLine.setText("X")
-        stopcommand = self.commandLine.text().strip()
-        self.sendSerialData(stopcommand)
+        if self.currentMode == "motion":
+            self.commandLine.setText("X")
+            stopcommand = self.commandLine.text().strip()
+            self.sendSerialData(stopcommand)
+
         self.btnStop.setEnabled(False)
         self.btnStart.setEnabled(True)
         self.updateCommandLine(self.currentMode)
