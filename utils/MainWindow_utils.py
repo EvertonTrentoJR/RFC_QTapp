@@ -346,7 +346,9 @@ class Ui_MainWindow(object):
         self.csvSavingEnabled = False
         self.csvHeader = False
 
-    # Events
+        self.stopRequested = False
+
+        # Events
         self.Ang_value.valueChanged.connect(self.paramCalc)
         self.Veloc_value.valueChanged.connect(self.paramCalc)
         self.Acc_value.valueChanged.connect(self.paramCalc)
@@ -579,7 +581,6 @@ class Ui_MainWindow(object):
                         self.csvSavingEnabled = True
 
                     else:
-
                         QtWidgets.QMessageBox.warning(self.MainWindow, "Echo Mismatch",
                         "The command returned by the hardware does not match the command sent.\n\n"
                         "The command was rejected for safety.")
@@ -615,6 +616,13 @@ class Ui_MainWindow(object):
 
             self.consoleOutput.appendPlainText(f"TX: {data}")
 
+            if self.stopRequested:
+                self.waitingEcho = False
+
+                QtWidgets.QMessageBox.warning(self.MainWindow, "Stop Event",
+                                              "The stop button was pressed!\n\n")
+                return
+
             self.consoleOutput.appendPlainText("Waiting for echo confirmation...")
 
             return True
@@ -635,6 +643,7 @@ class Ui_MainWindow(object):
             QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (Motion, Angle or Home) before starting.")
             return
         else:
+            self.stopRequested = False
             self.startcommand = self.commandLine.text().strip()
             self.sendSerialData(self.startcommand)
             self.btnStop.setEnabled(True)
@@ -642,6 +651,7 @@ class Ui_MainWindow(object):
 
     def event_stop_clicked(self):
         if self.currentMode == "motion":
+            self.stopRequested = True
             self.commandLine.setText("X")
             stopcommand = self.commandLine.text().strip()
             self.sendSerialData(stopcommand)
