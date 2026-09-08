@@ -97,6 +97,7 @@ QDoubleSpinBox {
     min-height: 24px;
 }
 
+
 QDoubleSpinBox:hover {
     background-color: #ededed;
 }
@@ -104,4 +105,187 @@ QDoubleSpinBox:hover {
 QDoubleSpinBox:focus {
     border: 1px solid #555555;
     background-color: #f4f4f4;
+}
+
+
+/* =========================================================
+   IMU WINDOW
+   ========================================================= */
+
+#imuConnectionFrame {
+    background-color: #cfcfcf;
+    border: 1px solid #b0b0b0;
+    border-radius: 10px;
+}
+
+#imuTitleLabel {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+
+/* ---------- SERIAL PORT ---------- */
+
+#imuSerialPort {
+    background-color: #e2e2e2;
+    border: 1px solid #9f9f9f;
+    border-radius: 6px;
+    padding: 6px;
+    min-height: 24px;
+}
+
+#imuSerialPort:hover {
+    background-color: #eeeeee;
+}
+
+#imuSerialPort::drop-down {
+    border: none;
+    width: 28px;
+}
+
+#imuSerialPort::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #111111;
+    margin-right: 8px;
+}
+
+
+/* ---------- BAUDRATE ---------- */
+
+#imuBaudrate {
+    background-color: #e2e2e2;
+    border: 1px solid #9f9f9f;
+    border-radius: 6px;
+    padding: 6px;
+    min-height: 24px;
+}
+
+#imuBaudrate:hover {
+    background-color: #eeeeee;
+}
+
+#imuBaudrate:focus {
+    background-color: #f4f4f4;
+    border: 1px solid #555555;
+}
+
+
+/* ---------- REFRESH ---------- */
+
+#imuRefreshPorts {
+    background-color: #c9c9c9;
+    border: 1px solid #aaaaaa;
+    border-radius: 6px;
+    padding: 7px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#imuRefreshPorts:hover {
+    background-color: #dddddd;
+}
+
+#imuRefreshPorts:pressed {
+    background-color: #999999;
+}
+
+
+/* ---------- CONNECT ---------- */
+
+#imuConnect {
+    background-color: #050505;
+    color: white;
+    border: 1px solid #050505;
+    border-radius: 6px;
+    padding: 7px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#imuConnect:hover {
+    background-color: #222222;
+}
+
+#imuConnect:pressed {
+    background-color: #444444;
+}
+
+
+/* ---------- SERIAL DATA LINE ---------- */
+
+#imuCommandLine {
+    background-color: #e2e2e2;
+    border: 1px solid #9f9f9f;
+    border-radius: 6px;
+    padding: 6px;
+    font-family: "Consolas";
+    font-size: 12px;
+}
+
+#imuCommandLine:read-only {
+    background-color: #d8d8d8;
+}
+
+
+/* ---------- SAVE CSV ---------- */
+
+#imuSaveCSV {
+    background-color: #d6b85a;
+    border: 1px solid #b99a3f;
+    border-radius: 6px;
+    color: #111111;
+    padding: 7px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#imuSaveCSV:hover {
+    background-color: #e3c86a;
+}
+
+#imuSaveCSV:pressed {
+    background-color: #b99a3f;
+}
+
+
+/* ---------- CSV PATH ---------- */
+
+#imuStatusCSV {
+    background-color: #e2e2e2;
+    border: 1px solid #9f9f9f;
+    border-radius: 6px;
+    padding: 6px;
+    font-family: "Consolas";
+    font-size: 11px;
+}
+
+#imuStatusCSV:read-only {
+    background-color: #d8d8d8;
+}
+
+
+/* ---------- CONNECTION STATUS ---------- */
+
+#imuStatusLabel {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+
+/* ---------- CONSOLE ---------- */
+
+#imuConsoleOutput {
+    background-color: #cfcfcf;
+    border: 1px solid #b0b0b0;
+    border-radius: 10px;
+    padding: 8px;
+    font-family: "Consolas";
+    font-size: 12px;
+}
+
+#imuConsoleOutput:focus {
+    border: 1px solid #888888;
 }

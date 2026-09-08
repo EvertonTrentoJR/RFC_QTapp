@@ -11,7 +11,7 @@ _STYLE_PATH = Path(__file__).parent / "stylesheet.qss"
 with open(_STYLE_PATH, "r", encoding="utf-8") as f:
     STYLEsheet = f.read()
 
-class Ui_MainWindow(object):
+class UI_MainWindow(object):
     def setupUi(self, MainWindow):
 
         # init variables
@@ -24,7 +24,7 @@ class Ui_MainWindow(object):
 
         self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1201, 770)
+        MainWindow.resize(1200, 770)
         MainWindow.setStyleSheet(STYLEsheet)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -325,7 +325,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    # init Events and variables
+        # init Events and variables
         self.variableFactor = None
 
         self.event_refreshports_clicked()
@@ -357,7 +357,7 @@ class Ui_MainWindow(object):
         self.radioRepsFixed.toggled.connect(self.event_reps_mode_changed)
         self.radioRepsInfinite.toggled.connect(self.event_reps_mode_changed)
 
-    # Button events
+        # Button events
         self.btnMove.clicked.connect(self.event_movement_clicked)
         self.btnAngle.clicked.connect(self.event_angle_clicked)
         self.btnHome.clicked.connect(self.event_home_clicked)
@@ -460,7 +460,6 @@ class Ui_MainWindow(object):
         else:
             self.statusLabel.setText(
                 f"MODE: {self.currentMode} Selected. ●  STATUS: CONNECTED to {self.COMport} @ {self.COMbaudrate} baud.")
-
 
         if mode == "home":
             self.commandLine.setText("H")

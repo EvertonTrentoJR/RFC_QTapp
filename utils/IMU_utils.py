@@ -1,239 +1,536 @@
-import serial
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from collections import deque
+# import relevant packages
+from PyQt5 import QtCore, QtGui, QtWidgets
+from pathlib import Path
+from serial import Serial, SerialException
+from serial.tools import list_ports
+import time
+import numpy as np
+import pyvista as pv
+import pyvistaqt as pvqt
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
+# Load the stylesheet once when this module is imported
+_STYLE_PATH = Path(__file__).parent / "stylesheet.qss"
 
-PORT = "COM12"
-BAUDRATE = 115200
-
-# Number of samples visible on screen
-WINDOW = 500
-
-# ============================================================
-# SERIAL
-# ============================================================
-
-ser = serial.Serial(
-    PORT,
-    BAUDRATE,
-    timeout=0.1
-)
-
-# Remove old data from serial buffer
-ser.reset_input_buffer()
-
-print(f"Connected to {PORT} @ {BAUDRATE} baud")
+with open(_STYLE_PATH, "r", encoding="utf-8") as f:
+    STYLEsheet = f.read()
 
 
-# ============================================================
-# DATA
-# ============================================================
+class UI_IMUWindow(object):
 
-names = [
-    "Ax", "Ay", "Az",
-    "Gx", "Gy", "Gz",
-    "Mx", "My", "Mz",
-    "Qi", "Qj", "Qk", "Qr"
-]
+    def setupIMU_UI(self, IMUWindow):
 
-data = {
-    name: deque(maxlen=WINDOW)
-    for name in names
-}
+        self.IMUWindow = IMUWindow
 
-samples = deque(maxlen=WINDOW)
+        IMUWindow.setObjectName("IMUWindow")
+        IMUWindow.resize(700, 500)
+        IMUWindow.setStyleSheet(STYLEsheet)
+        IMUWindow.setWindowTitle("IMU Serial Monitor")
 
-sample_number = 0
+        self.thread = None
+        self.worker = None
 
+        # Central Widget
+        self.centralWidget = QtWidgets.QWidget(IMUWindow)
+        self.centralWidget.setObjectName("centralWidget")
+        IMUWindow.setCentralWidget(self.centralWidget)
 
-# ============================================================
-# FIGURE
-# ============================================================
+        self.centralLayout = QtWidgets.QVBoxLayout(self.centralWidget)
+        self.centralLayout.setContentsMargins(10, 10, 10, 5)
+        self.centralLayout.setSpacing(5)
 
-plt.ion()
+        # Main Layout
+        self.mainLayout = QtWidgets.QHBoxLayout()
+        self.mainLayout.setSpacing(10)
 
-fig, ax = plt.subplots(
-    4,
-    1,
-    figsize=(12, 10),
-    sharex=True
-)
+        self.centralLayout.addLayout(self.mainLayout, 1)
 
-fig.suptitle("BNO085 Real-Time IMU Data")
+        # =========================================================
+        # IMU Sidebar
+        # =========================================================
 
+        self.frameIMU = QtWidgets.QFrame(self.centralWidget)
+        self.frameIMU.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.frameIMU.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.frameIMU.setObjectName("frameIMU")
+        self.frameIMU.setMinimumWidth(240)
+        self.frameIMU.setMaximumWidth(240)
 
-# ------------------------------------------------------------
-# Accelerometer
-# ------------------------------------------------------------
+        self.imuLayout = QtWidgets.QVBoxLayout(self.frameIMU)
+        self.imuLayout.setContentsMargins(3, 3, 3, 3)
+        self.imuLayout.setSpacing(6)
 
-line_ax, = ax[0].plot([], [], label="Ax")
-line_ay, = ax[0].plot([], [], label="Ay")
-line_az, = ax[0].plot([], [], label="Az")
+        # IMU Serial Connection
+        self.labelIMUTitle = QtWidgets.QLabel(self.frameIMU)
+        self.labelIMUTitle.setObjectName("labelIMUTitle")
+        self.labelIMUTitle.setText("IMU Serial Connection")
+        self.imuLayout.addWidget(self.labelIMUTitle)
 
-ax[0].set_ylabel("m/s²")
-ax[0].set_title("Accelerometer")
-ax[0].legend()
-ax[0].grid()
+        # Serial Port
+        self.portLayout = QtWidgets.QHBoxLayout()
+        self.labelSerialPort = QtWidgets.QLabel(self.frameIMU)
+        self.labelSerialPort.setText("Port:")
+        self.comboSerialPort = QtWidgets.QComboBox(self.frameIMU)
+        self.comboSerialPort.setObjectName("comboSerialPort")
+        self.btnRefreshPorts = QtWidgets.QPushButton(self.frameIMU)
+        self.btnRefreshPorts.setObjectName("btnRefreshPorts")
+        self.btnRefreshPorts.setText("↻")
+        self.btnRefreshPorts.setFixedSize(35, 35)
+        self.portLayout.addWidget(self.labelSerialPort)
+        self.portLayout.addWidget(self.comboSerialPort)
+        self.portLayout.addWidget(self.btnRefreshPorts)
+        self.imuLayout.addLayout(self.portLayout)
 
+        # Baud Rate
+        self.baudLayout = QtWidgets.QHBoxLayout()
+        self.labelBaudrate = QtWidgets.QLabel(self.frameIMU)
+        self.labelBaudrate.setText("Baud:")
+        self.lineBaudrate = QtWidgets.QLineEdit(self.frameIMU)
+        self.lineBaudrate.setObjectName("lineBaudrate")
+        self.lineBaudrate.setText("115200")
+        self.baudLayout.addWidget(self.labelBaudrate)
+        self.baudLayout.addWidget(self.lineBaudrate)
+        self.imuLayout.addLayout(self.baudLayout)
 
-# ------------------------------------------------------------
-# Gyroscope
-# ------------------------------------------------------------
+        # Connect
+        self.btnConnect = QtWidgets.QPushButton(self.frameIMU)
+        self.btnConnect.setObjectName("btnConnect")
+        self.btnConnect.setText("Connect")
+        self.imuLayout.addWidget(self.btnConnect)
 
-line_gx, = ax[1].plot([], [], label="Gx")
-line_gy, = ax[1].plot([], [], label="Gy")
-line_gz, = ax[1].plot([], [], label="Gz")
+        # Divider
+        self.line1 = QtWidgets.QFrame(self.frameIMU)
+        self.line1.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line1.setFrameShadow(QtWidgets.QFrame.Plain)
+        self.line1.setObjectName("line1")
+        self.imuLayout.addWidget(self.line1)
 
-ax[1].set_ylabel("rad/s")
-ax[1].set_title("Gyroscope")
-ax[1].legend()
-ax[1].grid()
+        # CSV
+        self.labelcsvIMUTitle = QtWidgets.QLabel(self.frameIMU)
+        self.labelcsvIMUTitle.setObjectName("labelcsvIMUTitle")
+        self.labelcsvIMUTitle.setText("IMU.CSV file")
+        self.imuLayout.addWidget(self.labelcsvIMUTitle)
 
+        # CSV button
+        self.btnSaveCSV = QtWidgets.QPushButton(self.frameIMU)
+        self.btnSaveCSV.setObjectName("btnSaveCSV")
+        self.btnSaveCSV.setText("Save CSV")
+        self.imuLayout.addWidget(self.btnSaveCSV)
 
-# ------------------------------------------------------------
-# Magnetometer
-# ------------------------------------------------------------
+        self.statusCSV = QtWidgets.QLineEdit(self.frameIMU)
+        self.statusCSV.setObjectName("statusCSV")
+        self.statusCSV.setReadOnly(True)
+        self.statusCSV.setPlaceholderText("No CSV file selected")
+        self.imuLayout.addWidget(self.statusCSV)
 
-line_mx, = ax[2].plot([], [], label="Mx")
-line_my, = ax[2].plot([], [], label="My")
-line_mz, = ax[2].plot([], [], label="Mz")
+        # Divider
+        self.line2 = QtWidgets.QFrame(self.frameIMU)
+        self.line2.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line2.setFrameShadow(QtWidgets.QFrame.Plain)
+        self.line2.setObjectName("line2")
+        self.imuLayout.addWidget(self.line2)
 
-ax[2].set_ylabel("µT")
-ax[2].set_title("Magnetometer")
-ax[2].legend()
-ax[2].grid()
+        self.imuLayout.addStretch()
 
+        # =========================================================
+        # LIVE IMU VALUES
+        # =========================================================
 
-# ------------------------------------------------------------
-# Quaternion
-# ------------------------------------------------------------
+        # Acceleration
+        self.labelAccTitle = QtWidgets.QLabel("Acceleration", self.frameIMU)
+        self.labelAccTitle.setObjectName("labelAccTitle")
+        self.imuLayout.addWidget(self.labelAccTitle)
 
-line_qi, = ax[3].plot([], [], label="Qi")
-line_qj, = ax[3].plot([], [], label="Qj")
-line_qk, = ax[3].plot([], [], label="Qk")
-line_qr, = ax[3].plot([], [], label="Qr")
+        self.accLayout = QtWidgets.QHBoxLayout()
 
-ax[3].set_ylabel("Quaternion")
-ax[3].set_xlabel("Sample")
-ax[3].set_title("Rotation Vector")
-ax[3].legend()
-ax[3].grid()
+        self.labelAx = QtWidgets.QLabel("Ax: 0.00", self.frameIMU)
+        self.labelAy = QtWidgets.QLabel("Ay: 0.00", self.frameIMU)
+        self.labelAz = QtWidgets.QLabel("Az: 0.00", self.frameIMU)
 
+        self.labelAx.setObjectName("labelAx")
+        self.labelAy.setObjectName("labelAy")
+        self.labelAz.setObjectName("labelAz")
 
-plt.tight_layout()
+        self.accLayout.addWidget(self.labelAx)
+        self.accLayout.addWidget(self.labelAy)
+        self.accLayout.addWidget(self.labelAz)
 
+        self.imuLayout.addLayout(self.accLayout)
 
-# ============================================================
-# REAL-TIME LOOP
-# ============================================================
+        # Gyroscope
+        self.labelGyroTitle = QtWidgets.QLabel("Gyroscope", self.frameIMU)
+        self.labelGyroTitle.setObjectName("labelGyroTitle")
+        self.imuLayout.addWidget(self.labelGyroTitle)
 
-try:
+        self.gyroLayout = QtWidgets.QHBoxLayout()
 
-    while plt.fignum_exists(fig.number):
+        self.labelGx = QtWidgets.QLabel("Gx: 0.00", self.frameIMU)
+        self.labelGy = QtWidgets.QLabel("Gy: 0.00", self.frameIMU)
+        self.labelGz = QtWidgets.QLabel("Gz: 0.00", self.frameIMU)
 
-        # ----------------------------------------------------
-        # Read serial
-        # ----------------------------------------------------
+        self.labelGx.setObjectName("labelGx")
+        self.labelGy.setObjectName("labelGy")
+        self.labelGz.setObjectName("labelGz")
 
-        while ser.in_waiting:
+        self.gyroLayout.addWidget(self.labelGx)
+        self.gyroLayout.addWidget(self.labelGy)
+        self.gyroLayout.addWidget(self.labelGz)
 
-            try:
+        self.imuLayout.addLayout(self.gyroLayout)
 
-                line = ser.readline().decode(
-                    "utf-8",
-                    errors="ignore"
-                ).strip()
+        # Magnetometer
+        self.labelMagTitle = QtWidgets.QLabel("Magnetometer", self.frameIMU)
+        self.labelMagTitle.setObjectName("labelMagTitle")
+        self.imuLayout.addWidget(self.labelMagTitle)
 
-                values = line.split(",")
+        self.magLayout = QtWidgets.QHBoxLayout()
 
-                # Arduino packet must contain exactly 13 values
-                if len(values) != 13:
+        self.labelMx = QtWidgets.QLabel("Mx: 0.00", self.frameIMU)
+        self.labelMy = QtWidgets.QLabel("My: 0.00", self.frameIMU)
+        self.labelMz = QtWidgets.QLabel("Mz: 0.00", self.frameIMU)
+
+        self.labelMx.setObjectName("labelMx")
+        self.labelMy.setObjectName("labelMy")
+        self.labelMz.setObjectName("labelMz")
+
+        self.magLayout.addWidget(self.labelMx)
+        self.magLayout.addWidget(self.labelMy)
+        self.magLayout.addWidget(self.labelMz)
+
+        self.imuLayout.addLayout(self.magLayout)
+
+        # Quaternion
+        self.labelQuatTitle = QtWidgets.QLabel("Quaternion", self.frameIMU)
+        self.labelQuatTitle.setObjectName("labelQuatTitle")
+        self.imuLayout.addWidget(self.labelQuatTitle)
+
+        self.quatLayout = QtWidgets.QGridLayout()
+
+        self.labelQi = QtWidgets.QLabel("Qi: 0.00", self.frameIMU)
+        self.labelQj = QtWidgets.QLabel("Qj: 0.00", self.frameIMU)
+        self.labelQk = QtWidgets.QLabel("Qk: 0.00", self.frameIMU)
+        self.labelQr = QtWidgets.QLabel("Qr: 1.00", self.frameIMU)
+
+        self.labelQi.setObjectName("labelQi")
+        self.labelQj.setObjectName("labelQj")
+        self.labelQk.setObjectName("labelQk")
+        self.labelQr.setObjectName("labelQr")
+
+        self.quatLayout.addWidget(self.labelQi, 0, 0)
+        self.quatLayout.addWidget(self.labelQj, 0, 1)
+        self.quatLayout.addWidget(self.labelQk, 1, 0)
+        self.quatLayout.addWidget(self.labelQr, 1, 1)
+
+        self.imuLayout.addLayout(self.quatLayout)
+        self.imuLayout.addStretch()
+
+        # =========================================================
+        # Visualization Frame
+        # =========================================================
+
+        self.plotFrame = QtWidgets.QFrame(self.centralWidget)
+        self.plotFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.plotFrame.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.plotFrame.setObjectName("plotFrame")
+        self.plotFrame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
+        self.plotLayout.setContentsMargins(0, 0, 0, 0)
+        self.plotLayout.setSpacing(10)
+
+        # =========================================================
+        # Status Line
+        # =========================================================
+        self.footerFrame = QtWidgets.QFrame(self.centralWidget)
+        self.footerFrame.setObjectName("footerFrame")
+        self.footerFrame.setFixedHeight(30)
+
+        self.footerLayout = QtWidgets.QHBoxLayout(self.footerFrame)
+        self.footerLayout.setContentsMargins(10, 0, 10, 0)
+        self.statusLabel = QtWidgets.QLabel(self.footerFrame)
+        self.statusLabel.setObjectName("statusLabel")
+        self.statusLabel.setText("● STATUS: DISCONNECTED")
+        self.footerLayout.addWidget(self.statusLabel)
+        self.footerLayout.addStretch()
+        self.centralLayout.addWidget(self.footerFrame)
+
+        # =========================================================
+        # Main Layout
+        # =========================================================
+        self.frameIMU.setFixedWidth(250)
+
+        self.mainLayout.addWidget(self.frameIMU, 0)
+        self.mainLayout.addWidget(self.plotFrame, 1)
+
+        self.plot3D()
+
+        # init Events and variables
+        self.event_refreshports_clicked()
+        self.serial = None
+        self.currentMode = None
+        self.COMport = None
+        self.COMbaudrate = None
+        self.csvFilePath = None
+        self.csvSavingEnabled = False
+        self.csvHeader = False
+
+        self.rxBuffer = ""
+
+        # Button events
+        self.btnRefreshPorts.clicked.connect(self.event_refreshports_clicked)
+        self.btnConnect.clicked.connect(self.event_connectport_clicked)
+        self.btnSaveCSV.clicked.connect(self.event_savecsv_clicked)
+
+        self.serialTimer = QtCore.QTimer(IMUWindow)
+        self.serialTimer.setInterval(50)
+        self.serialTimer.timeout.connect(self.readSerialData)
+
+    def event_refreshports_clicked(self):
+
+        self.comboSerialPort.clear()
+        ports = list_ports.comports()
+        for port in ports:
+            self.comboSerialPort.addItem(port.device)
+        if self.comboSerialPort.count() == 0:
+            self.comboSerialPort.addItem("No COM ports")
+
+    def event_connectport_clicked(self):
+
+        if self.serial is not None and self.serial.is_open:
+            self.serial.close()
+            self.serial = None
+            self.btnConnect.setText("Connect")
+            self.statusLabel.setText(f" ●  STATUS: DISCONNECTED.")
+            self.angleText.SetText(3, f"Angle: 0.00°")
+
+            self.labelAx.setText(f"Ax: 0.00")
+            self.labelAy.setText(f"Ay: 0.00")
+            self.labelAz.setText(f"Az: 0.00")
+            self.labelGx.setText(f"Gx: 0.00")
+            self.labelGy.setText(f"Gy: 0.00")
+            self.labelGz.setText(f"Gz: 0.00")
+            self.labelMx.setText(f"Mx: 0.00")
+            self.labelMy.setText(f"My: 0.00")
+            self.labelMz.setText(f"Mz: 0.00")
+            self.labelQi.setText(f"Qi: 0.00")
+            self.labelQj.setText(f"Qj: 0.00")
+            self.labelQk.setText(f"Qk: 0.00")
+            self.labelQr.setText(f"Qr: 0.00")
+
+            return
+
+        try:
+            self.COMport = self.comboSerialPort.currentData()
+            if self.COMport is None:
+                self.COMport = self.comboSerialPort.currentText().split(" ")[0]
+            self.COMbaudrate = int(self.lineBaudrate.text())
+
+            self.serial = Serial(
+                port=self.COMport,
+                baudrate=self.COMbaudrate,
+                timeout=0.1
+            )
+
+            self.btnConnect.setText("Disconnect")
+            self.statusLabel.setText(f" ● STATUS: CONNECTED to {self.COMport} @ {self.COMbaudrate} baud.")
+
+            self.serialTimer.start()
+
+        except SerialException as e:
+            self.serial = None
+            self.statusLabel.setText(f"Connection failed:\n{e}")
+
+    def readSerialData(self):
+
+        if self.serial is None:
+            return
+
+        if not self.serial.is_open:
+            return
+
+        try:
+            data = self.serial.read(self.serial.in_waiting).decode("utf-8", errors="ignore")
+
+            if not data:
+                return
+
+            self.rxBuffer += data
+
+            while "\n" in self.rxBuffer:
+                line, self.rxBuffer = self.rxBuffer.split("\n", 1)
+                line = line.rstrip("\r").strip()
+
+                if not line:
                     continue
 
-                values = [float(v) for v in values]
+                self.updateIMU_reading(line)
 
-                # Store values
-                for name, value in zip(names, values):
-                    data[name].append(value)
+                if self.csvSavingEnabled and self.csvFilePath:
+                    self.startSavingterminal(line)
 
-                samples.append(sample_number)
+        except SerialException as error:
+            self.statusLabel.setText(f"Serial reading error: {error}")
+            self.serialTimer.stop()
 
-                sample_number += 1
+    def event_savecsv_clicked(self):
 
-            except ValueError:
-                # Ignore header / malformed lines
-                continue
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.IMUWindow,
+            "Save CSV File",
+            "",
+            "CSV Files (*.csv)"
+        )
 
+        if not file_path:
+            self.statusCSV.setText("No CSV file selected")
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
+            return
 
-        # ----------------------------------------------------
-        # Update plots
-        # ----------------------------------------------------
+        if not file_path.lower().endswith(".csv"):
+            file_path += ".csv"
 
-        if len(samples) > 0:
+        try:
+            open(file_path, "w", encoding="utf-8").close()
+            self.csvFilePath = file_path
+            self.csvSavingEnabled = True
+            self.statusCSV.setText(file_path)
 
-            x = list(samples)
+        except Exception as error:
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
 
-            # Accelerometer
+            QtWidgets.QMessageBox.warning(
+                self.IMUWindow,
+                "CSV File Error",
+                f"Could not create the CSV file.\n\n{error}"
+            )
 
-            line_ax.set_data(x, data["Ax"])
-            line_ay.set_data(x, data["Ay"])
-            line_az.set_data(x, data["Az"])
+    def startSavingterminal(self, line):
 
+        self.machinetime = int(time.time())
 
-            # Gyroscope
+        parts = line.split(",")
 
-            line_gx.set_data(x, data["Gx"])
-            line_gy.set_data(x, data["Gy"])
-            line_gz.set_data(x, data["Gz"])
+        if len(parts) < 13:
+            return
 
+        ax = parts[0].strip()
+        ay = parts[1].strip()
+        az = parts[1].strip()
+        gx = parts[0].strip()
+        gy = parts[1].strip()
+        gz = parts[1].strip()
+        mx = parts[0].strip()
+        my = parts[1].strip()
+        mz = parts[1].strip()
+        qi = parts[0].strip()
+        qj = parts[1].strip()
+        qk = parts[1].strip()
+        qr = parts[0].strip()
 
-            # Magnetometer
+        csv_line = f"{self.machinetime},{ay},{az},{gx},{gy},{gz},{mx},{my},{mz},{qi},{qj},{qk},{qr}\n"
 
-            line_mx.set_data(x, data["Mx"])
-            line_my.set_data(x, data["My"])
-            line_mz.set_data(x, data["Mz"])
+        try:
+            if not self.csvHeader:
+                with open(self.csvFilePath, "w", encoding="utf-8") as file:
+                    file.write("Timestamp, Ax, Ay, Az,Gx, Gy, Gz, Mx, My, Mz, Qi, Qj, Qk, Qr\n")
+                    file.write(csv_line)
 
+                self.csvHeader = True
+            else:
+                with open(self.csvFilePath, "a", encoding="utf-8") as file:
+                    file.write(csv_line)
+            return
 
-            # Quaternion
+        except Exception as error:
 
-            line_qi.set_data(x, data["Qi"])
-            line_qj.set_data(x, data["Qj"])
-            line_qk.set_data(x, data["Qk"])
-            line_qr.set_data(x, data["Qr"])
+            self.csvFilePath = None
+            self.csvSavingEnabled = False
+            self.csvHeader = False
 
+            QtWidgets.QMessageBox.warning(
+                self.IMUWindow,
+                "CSV File Error",
+                f"Could not save data to the CSV file.\n\n{error}"
+            )
+            return
 
-            # ------------------------------------------------
-            # Automatic axis limits
-            # ------------------------------------------------
+    def updateIMU_reading(self, line):
 
-            for axis in ax:
+        parts = line.split(",")
 
-                axis.relim()
-                axis.autoscale_view()
+        if len(parts) < 13:
+            return
 
+        try:
+            ax = float(parts[0].strip())
+            ay = float(parts[1].strip())
+            az = float(parts[2].strip())
+            gx = float(parts[3].strip())
+            gy = float(parts[4].strip())
+            gz = float(parts[5].strip())
+            mx = float(parts[6].strip())
+            my = float(parts[7].strip())
+            mz = float(parts[8].strip())
+            qi = float(parts[9].strip())
+            qj = float(parts[10].strip())
+            qk = float(parts[11].strip())
+            qr = float(parts[12].strip())
 
-        # ----------------------------------------------------
-        # Refresh
-        # ----------------------------------------------------
+        except ValueError:
+            return
 
-        fig.canvas.draw_idle()
-        fig.canvas.flush_events()
+        self.labelAx.setText(f"Ax: {ax:.2f}")
+        self.labelAy.setText(f"Ay: {ay:.2f}")
+        self.labelAz.setText(f"Az: {az:.2f}")
+        self.labelGx.setText(f"Gx: {gx:.2f}")
+        self.labelGy.setText(f"Gy: {gy:.2f}")
+        self.labelGz.setText(f"Gz: {gz:.2f}")
+        self.labelMx.setText(f"Mx: {mx:.2f}")
+        self.labelMy.setText(f"My: {my:.2f}")
+        self.labelMz.setText(f"Mz: {mz:.2f}")
+        self.labelQi.setText(f"Qi: {qi:.2f}")
+        self.labelQj.setText(f"Qj: {qj:.2f}")
+        self.labelQk.setText(f"Qk: {qk:.2f}")
+        self.labelQr.setText(f"Qr: {qr:.2f}")
 
-        plt.pause(0.01)
+        self.upload3dplot(qi, qj, qk, qr)
 
+    def plot3D(self):
 
-except KeyboardInterrupt:
+        self.plotter3D = pvqt.QtInteractor(self.plotFrame)
+        self.plotter3D.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.plotLayout.addWidget(self.plotter3D)
 
-    print("\nStopped by user.")
+        self.pipeMeshOriginal = pv.Cylinder(center=(0, 0, 0), direction=(1, 0, 0), radius=0.3, height=2.5,
+                                            resolution=80)
+        self.pipeMesh = self.pipeMeshOriginal.copy()
+        self.pipeActor = self.plotter3D.add_mesh(self.pipeMesh, color="lightblue", opacity=0.5, show_edges=True)
 
+        self.angleText = self.plotter3D.add_text("Angle: 0.00°", position="upper_right", font_size=15)
 
-finally:
+        self.plotter3D.add_axes()
+        self.plotter3D.view_xy()
+        self.plotter3D.camera.Roll(180)
+        self.plotter3D.enable_trackball_style()
+        self.plotter3D.reset_camera()
 
-    ser.close()
+    def upload3dplot(self, qi, qj, qk, qr):
 
-    print("Serial port closed.")
+        norm = np.sqrt(qi ** 2 + qj ** 2 + qk ** 2 + qr ** 2)
+
+        if norm == 0:
+            return
+
+        qi /= norm
+        qj /= norm
+        qk /= norm
+        qr /= norm
+
+        # Rotation around Z axis
+        angle = np.arctan2(2 * (qr * qk + qi * qj), 1 - 2 * (qj ** 2 + qk ** 2))
+        angle_deg = -np.degrees(angle)
+
+        # Rotate pipe
+        self.pipeActor.SetOrientation(0, 0, angle_deg)
+        self.angleText.SetText(3, f"Angle: {angle_deg:.2f}°")
+        self.plotter3D.render()
