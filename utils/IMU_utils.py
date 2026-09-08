@@ -94,7 +94,7 @@ class UI_IMUWindow(object):
         # Connect
         self.btnConnect = QtWidgets.QPushButton(self.frameIMU)
         self.btnConnect.setObjectName("btnConnect")
-        self.btnConnect.setText("Connect")
+        self.btnConnect.setText("CONNECT")
         self.imuLayout.addWidget(self.btnConnect)
 
         # Divider
@@ -113,7 +113,7 @@ class UI_IMUWindow(object):
         # CSV button
         self.btnSaveCSV = QtWidgets.QPushButton(self.frameIMU)
         self.btnSaveCSV.setObjectName("btnSaveCSV")
-        self.btnSaveCSV.setText("Save CSV")
+        self.btnSaveCSV.setText("🗀 Save .CSV")
         self.imuLayout.addWidget(self.btnSaveCSV)
 
         self.statusCSV = QtWidgets.QLineEdit(self.frameIMU)
@@ -502,35 +502,55 @@ class UI_IMUWindow(object):
         self.plotLayout.addWidget(self.plotter3D)
 
         self.pipeMeshOriginal = pv.Cylinder(center=(0, 0, 0), direction=(1, 0, 0), radius=0.3, height=2.5,
-                                            resolution=80)
+                                            resolution=100)
         self.pipeMesh = self.pipeMeshOriginal.copy()
         self.pipeActor = self.plotter3D.add_mesh(self.pipeMesh, color="lightblue", opacity=0.5, show_edges=True)
 
         self.angleText = self.plotter3D.add_text("Angle: 0.00°", position="upper_right", font_size=15)
 
         self.plotter3D.add_axes()
-        self.plotter3D.view_xy()
+        self.plotter3D.view_yx()
         self.plotter3D.camera.Roll(180)
         self.plotter3D.enable_trackball_style()
-        self.plotter3D.reset_camera()
+        self.plotter3D.camera.zoom(0.8)
 
-    def upload3dplot(self, qi, qj, qk, qr):
+    def quaternionToEuler(self, qi, qj, qk, qr):
 
         norm = np.sqrt(qi ** 2 + qj ** 2 + qk ** 2 + qr ** 2)
 
         if norm == 0:
-            return
+            return 0.0, 0.0, 0.0
 
         qi /= norm
         qj /= norm
         qk /= norm
         qr /= norm
 
-        # Rotation around Z axis
-        angle = np.arctan2(2 * (qr * qk + qi * qj), 1 - 2 * (qj ** 2 + qk ** 2))
-        angle_deg = -np.degrees(angle)
+        # X - Roll
+        roll = np.arctan2(
+            2 * (qr * qi + qj * qk),
+            1 - 2 * (qi ** 2 + qj ** 2)
+        )
 
-        # Rotate pipe
+        # Y - Pitch
+        sinp = 2 * (qr * qj - qk * qi)
+        sinp = np.clip(sinp, -1.0, 1.0)
+        pitch = np.arcsin(sinp)
+
+        # Z - Yaw
+        yaw = np.arctan2(
+            2 * (qr * qk + qi * qj),
+            1 - 2 * (qj ** 2 + qk ** 2)
+        )
+
+        return np.degrees(roll), np.degrees(pitch), np.degrees(yaw)
+
+    def upload3dplot(self, qi, qj, qk, qr):
+
+        roll, pitch, yaw = self.quaternionToEuler(qi, qj, qk, qr)
+
+        angle_deg = pitch
+
         self.pipeActor.SetOrientation(0, 0, angle_deg)
         self.angleText.SetText(3, f"Angle: {angle_deg:.2f}°")
         self.plotter3D.render()

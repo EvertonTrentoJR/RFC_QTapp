@@ -7,10 +7,10 @@ app = QtWidgets.QApplication(sys.argv)
 # =========================================================
 # RFC Main Window
 # =========================================================
-# MainWindow = QtWidgets.QMainWindow()
-# ui = MainWindow_utils.UI_MainWindow()
-# ui.setupUi(MainWindow)
-# MainWindow.show()
+MainWindow = QtWidgets.QMainWindow()
+ui = MainWindow_utils.UI_MainWindow()
+ui.setupUi(MainWindow)
+MainWindow.show()
 
 # =========================================================
 # IMU Window

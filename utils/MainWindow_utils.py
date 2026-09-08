@@ -389,7 +389,7 @@ class UI_MainWindow(object):
         self.controlTitle.setText(_translate("MainWindow", "CONTROL"))
         self.btnStart.setText(_translate("MainWindow", "▷  START"))
         self.btnStop.setText(_translate("MainWindow", "■  STOP"))
-        self.btnSaveCSV.setText(_translate("MainWindow", "🗀 SAVE .csv"))
+        self.btnSaveCSV.setText(_translate("MainWindow", "🗀 SAVE .CSV"))
         self.statusCSV.setText(_translate("MainWindow", "No CSV file selected."))
         self.Veloc_label.setText(_translate("MainWindow", " Velocity"))
         self.Veloc_unit.setText(_translate("MainWindow", "RPM"))
