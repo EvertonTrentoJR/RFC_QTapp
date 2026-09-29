@@ -18,6 +18,7 @@ MainWindow.show()
 IMUWindow = QtWidgets.QMainWindow()
 imu = IMU_utils.UI_IMUWindow()
 imu.setupIMU_UI(IMUWindow)
+
 IMUWindow.show()
 
 sys.exit(app.exec_())

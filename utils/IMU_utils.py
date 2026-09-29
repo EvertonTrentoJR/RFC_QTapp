@@ -550,7 +550,9 @@ class UI_IMUWindow(object):
         roll, pitch, yaw = self.quaternionToEuler(qi, qj, qk, qr)
 
         angle_deg = pitch
+        visual_angle = 90 - angle_deg
 
-        self.pipeActor.SetOrientation(0, 0, angle_deg)
-        self.angleText.SetText(3, f"Angle: {angle_deg:.2f}°")
+        self.pipeActor.SetOrientation(0, 0, visual_angle)
+
+        self.angleText.SetText(3, f"Angle: {-angle_deg:.2f}°")
         self.plotter3D.render()
