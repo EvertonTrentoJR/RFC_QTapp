@@ -11,8 +11,8 @@ _STYLE_PATH = Path(__file__).parent / "stylesheet.qss"
 with open(_STYLE_PATH, "r", encoding="utf-8") as f:
     STYLEsheet = f.read()
 
-class UI_MainWindow(object):
-    def setupUi(self, MainWindow):
+class UI_MotorDriver(object):
+    def setupUi(self, MotorDriver):
 
         # init variables
         self.veloc_max = 20
@@ -22,11 +22,11 @@ class UI_MainWindow(object):
         self.ang_max = 90
         self.ang_min = -90
 
-        self.MainWindow = MainWindow
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1200, 770)
-        MainWindow.setStyleSheet(STYLEsheet)
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.MotorDriver = MotorDriver
+        MotorDriver.setObjectName("MotorDriver")
+        MotorDriver.resize(1200, 770)
+        MotorDriver.setStyleSheet(STYLEsheet)
+        self.centralwidget = QtWidgets.QWidget(MotorDriver)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout_root = QtWidgets.QVBoxLayout(self.centralwidget)
         self.verticalLayout_root.setContentsMargins(0, 0, 0, 0)
@@ -320,10 +320,10 @@ class UI_MainWindow(object):
         spacerItem4 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_footer.addItem(spacerItem4)
         self.verticalLayout_root.addWidget(self.footerFrame)
-        MainWindow.setCentralWidget(self.centralwidget)
+        MotorDriver.setCentralWidget(self.centralwidget)
 
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.retranslateUi(MotorDriver)
+        QtCore.QMetaObject.connectSlotsByName(MotorDriver)
 
         # init Events and variables
         self.variableFactor = None
@@ -334,7 +334,7 @@ class UI_MainWindow(object):
         self.COMport = None
         self.COMbaudrate = None
 
-        self.serialTimer = QtCore.QTimer(MainWindow)
+        self.serialTimer = QtCore.QTimer(MotorDriver)
         self.serialTimer.setInterval(50)
         self.serialTimer.timeout.connect(self.readSerialData)
 
@@ -367,40 +367,46 @@ class UI_MainWindow(object):
         self.btnStop.clicked.connect(self.event_stop_clicked)
         self.btnSaveCSV.clicked.connect(self.event_savecsv_clicked)
 
-    def retranslateUi(self, MainWindow):
+        #shutdown event
+        app = QtWidgets.QApplication.instance()
+
+        if app is not None:
+            app.aboutToQuit.connect(self.shutdown)
+
+    def retranslateUi(self, MotorDriver):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "RFC Control Panel"))
-        self.logoLabel.setText(_translate("MainWindow", "RFC"))
-        self.groupLabel.setText(_translate("MainWindow", "StepperMotor"))
-        self.titleLabel.setText(_translate("MainWindow", " CONTROL PANEL"))
-        self.creditLabel.setText(_translate("MainWindow","Powered by LASII | Debugged by AI"))
-        self.menuTitle.setText(_translate("MainWindow", "TEST SELECTION"))
-        self.btnMove.setText(_translate("MainWindow", "  ∿   MOTION"))
-        self.btnAngle.setText(_translate("MainWindow", "  ∠   ANGLE"))
-        self.btnHome.setText(_translate("MainWindow", "  ⌂   HOME"))
-        self.connectionTitle.setText(_translate("MainWindow", "COM CONNECTION"))
-        self.serialPortLabel.setText(_translate("MainWindow", "Serial Port"))
-        self.comboSerialPort.setItemText(0, _translate("MainWindow", "--"))
-        self.btnRefreshPorts.setToolTip(_translate("MainWindow", "Refresh COM ports"))
-        self.btnRefreshPorts.setText(_translate("MainWindow", "↻ refresh"))
-        self.baudLabel.setText(_translate("MainWindow", "Baud rate"))
-        self.lineBaudrate.setText(_translate("MainWindow", "2000000"))
-        self.btnConnect.setText(_translate("MainWindow", "⛓  CONNECT"))
-        self.controlTitle.setText(_translate("MainWindow", "CONTROL"))
-        self.btnStart.setText(_translate("MainWindow", "▷  START"))
-        self.btnStop.setText(_translate("MainWindow", "■  STOP"))
-        self.btnSaveCSV.setText(_translate("MainWindow", "🗀 SAVE .CSV"))
-        self.statusCSV.setText(_translate("MainWindow", "No CSV file selected."))
-        self.Veloc_label.setText(_translate("MainWindow", " Velocity"))
-        self.Veloc_unit.setText(_translate("MainWindow", "RPM"))
-        self.Acc_label.setText(_translate("MainWindow", "Acceleration"))
-        self.Acc_unit.setText(_translate("MainWindow", "RPM/s"))
-        self.Ang_label.setText(_translate("MainWindow", "Angle"))
-        self.Ang_unit.setText(_translate("MainWindow", "Degree"))
-        self.DTime_label.setText(_translate("MainWindow", "Delay Time"))
-        self.DTime_unit.setText(_translate("MainWindow", "Seconds"))
-        self.Reps_label.setText(_translate("MainWindow", "Repetition"))
-        self.statusLabel.setText(_translate("MainWindow", "●  STATUS: DISCONNECTED"))
+        MotorDriver.setWindowTitle(_translate("MotorDriver", "RFC Control Panel"))
+        self.logoLabel.setText(_translate("MotorDriver", "RFC"))
+        self.groupLabel.setText(_translate("MotorDriver", "StepperMotor"))
+        self.titleLabel.setText(_translate("MotorDriver", " CONTROL PANEL"))
+        self.creditLabel.setText(_translate("MotorDriver","Powered by LASII | Debugged by AI"))
+        self.menuTitle.setText(_translate("MotorDriver", "TEST SELECTION"))
+        self.btnMove.setText(_translate("MotorDriver", "  ∿   MOTION"))
+        self.btnAngle.setText(_translate("MotorDriver", "  ∠   ANGLE"))
+        self.btnHome.setText(_translate("MotorDriver", "  ⌂   HOME"))
+        self.connectionTitle.setText(_translate("MotorDriver", "COM CONNECTION"))
+        self.serialPortLabel.setText(_translate("MotorDriver", "Serial Port"))
+        self.comboSerialPort.setItemText(0, _translate("MotorDriver", "--"))
+        self.btnRefreshPorts.setToolTip(_translate("MotorDriver", "Refresh COM ports"))
+        self.btnRefreshPorts.setText(_translate("MotorDriver", "↻ refresh"))
+        self.baudLabel.setText(_translate("MotorDriver", "Baud rate"))
+        self.lineBaudrate.setText(_translate("MotorDriver", "2000000"))
+        self.btnConnect.setText(_translate("MotorDriver", "⛓  CONNECT"))
+        self.controlTitle.setText(_translate("MotorDriver", "CONTROL"))
+        self.btnStart.setText(_translate("MotorDriver", "▷  START"))
+        self.btnStop.setText(_translate("MotorDriver", "■  STOP"))
+        self.btnSaveCSV.setText(_translate("MotorDriver", "🗀 SAVE .CSV"))
+        self.statusCSV.setText(_translate("MotorDriver", "No CSV file selected."))
+        self.Veloc_label.setText(_translate("MotorDriver", " Velocity"))
+        self.Veloc_unit.setText(_translate("MotorDriver", "RPM"))
+        self.Acc_label.setText(_translate("MotorDriver", "Acceleration"))
+        self.Acc_unit.setText(_translate("MotorDriver", "RPM/s"))
+        self.Ang_label.setText(_translate("MotorDriver", "Angle"))
+        self.Ang_unit.setText(_translate("MotorDriver", "Degree"))
+        self.DTime_label.setText(_translate("MotorDriver", "Delay Time"))
+        self.DTime_unit.setText(_translate("MotorDriver", "Seconds"))
+        self.Reps_label.setText(_translate("MotorDriver", "Repetition"))
+        self.statusLabel.setText(_translate("MotorDriver", "●  STATUS: DISCONNECTED"))
 
     def event_movement_clicked(self):
         self.setMode("motion")
@@ -580,7 +586,7 @@ class UI_MainWindow(object):
                         self.csvSavingEnabled = True
 
                     else:
-                        QtWidgets.QMessageBox.warning(self.MainWindow, "Echo Mismatch",
+                        QtWidgets.QMessageBox.warning(self.MotorDriver, "Echo Mismatch",
                         "The command returned by the hardware does not match the command sent.\n\n"
                         "The command was rejected for safety.")
 
@@ -599,7 +605,7 @@ class UI_MainWindow(object):
     def sendSerialData(self, data):
 
         if self.serial is None or not self.serial.is_open:
-            QtWidgets.QMessageBox.warning(self.MainWindow,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
+            QtWidgets.QMessageBox.warning(self.MotorDriver,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
             return False
 
         data = str(data).strip()
@@ -618,7 +624,7 @@ class UI_MainWindow(object):
             if self.stopRequested:
                 self.waitingEcho = False
 
-                QtWidgets.QMessageBox.warning(self.MainWindow, "Stop Event",
+                QtWidgets.QMessageBox.warning(self.MotorDriver, "Stop Event",
                                               "The stop button was pressed!\n\n")
                 return
 
@@ -634,12 +640,27 @@ class UI_MainWindow(object):
 
             return False
 
+    def shutdown(self):
+        """Stop serial acquisition and release the COM port."""
+
+        if hasattr(self, "serialTimer"):
+            self.serialTimer.stop()
+
+        if self.serial is not None:
+            try:
+                if self.serial.is_open:
+                    self.serial.close()
+            except (SerialException, OSError) as error:
+                print(f"Serial shutdown error: {error}")
+            finally:
+                self.serial = None
+
     def event_start_clicked(self):
         if self.serial is None or not self.serial.is_open:
-            QtWidgets.QMessageBox.warning(self.MainWindow,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
+            QtWidgets.QMessageBox.warning(self.MotorDriver,"Serial port is not connected.","Please Connect to a Serial Port before starting.")
             return False
         elif self.currentMode is None:
-            QtWidgets.QMessageBox.warning(self.MainWindow,"No Mode Selected","Please select an operation mode (Motion, Angle or Home) before starting.")
+            QtWidgets.QMessageBox.warning(self.MotorDriver,"No Mode Selected","Please select an operation mode (Motion, Angle or Home) before starting.")
             return
         else:
             self.stopRequested = False
@@ -673,7 +694,7 @@ class UI_MainWindow(object):
         if self.variableFactor >= 1:
             self.updateCommandLine(self.currentMode)
         else:
-            QtWidgets.QMessageBox.warning(self.MainWindow,"Invalid Parameters",
+            QtWidgets.QMessageBox.warning(self.MotorDriver,"Invalid Parameters",
                 "The selected parameters generate an invalid movement.\n"
             )
             return False
@@ -726,7 +747,7 @@ class UI_MainWindow(object):
             self.csvHeader = False
 
             QtWidgets.QMessageBox.warning(
-                self.MainWindow,
+                self.MotorDriver,
                 "CSV File Error",
                 f"Could not save data to the CSV file.\n\n{error}"
             )
@@ -735,7 +756,7 @@ class UI_MainWindow(object):
     def event_savecsv_clicked(self):
 
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self.MainWindow,
+            self.MotorDriver,
             "Save CSV File",
             "",
             "CSV Files (*.csv)"
@@ -761,7 +782,7 @@ class UI_MainWindow(object):
             self.csvSavingEnabled = False
 
             QtWidgets.QMessageBox.warning(
-                self.MainWindow,
+                self.MotorDriver,
                 "CSV File Error",
                 f"Could not create the CSV file.\n\n{error}"
             )

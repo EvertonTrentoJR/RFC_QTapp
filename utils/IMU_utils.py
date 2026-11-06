@@ -15,6 +15,83 @@ with open(_STYLE_PATH, "r", encoding="utf-8") as f:
     STYLEsheet = f.read()
 
 
+class IMUSerialReader(QtCore.QThread):
+    connected = QtCore.pyqtSignal()
+    packets = QtCore.pyqtSignal(object)
+    connection_error = QtCore.pyqtSignal(str)
+    warning = QtCore.pyqtSignal(str)
+
+    def __init__(self, port, baudrate, parent=None):
+        super().__init__(parent)
+        self.port = port
+        self.baudrate = baudrate
+        self._stop_requested = False
+
+    def stop(self):
+        self._stop_requested = True
+
+    def run(self):
+        # Open and close the COM port in this worker thread only.
+        pending = []
+        rx = bytearray()
+        try:
+            with Serial(port=self.port, baudrate=self.baudrate, timeout=0.1) as ser:
+                self.connected.emit()
+                last_emit = time.monotonic()
+
+                while not self._stop_requested:
+                    count = min(max(ser.in_waiting, 1), 4096)
+                    data = ser.read(count)
+                    if data:
+                        rx.extend(data)
+                        while True:
+                            # Accept '\n', '\r\n', or '\r' as packet separators.
+                            n_pos = rx.find(b"\n")
+                            r_pos = rx.find(b"\r")
+                            ends = [pos for pos in (n_pos, r_pos) if pos >= 0]
+                            if not ends:
+                                break
+                            end = min(ends)
+                            packet = bytes(rx[:end]).decode("utf-8", errors="replace").strip()
+                            del rx[:end + 1]
+                            if packet:
+                                pending.append(packet)
+
+                        # Prevent runaway memory usage if the device never sends '\n'.
+                        if len(rx) > 8192:
+                            preview = bytes(rx[:120]).decode("utf-8", errors="replace")
+                            self.warning.emit(
+                                f"No newline found in >8192 serial bytes. "
+                                f"Check the IMU firmware protocol. Prefix: {preview!r}"
+                            )
+                            rx.clear()
+
+                    now = time.monotonic()
+                    if pending and (now - last_emit >= 0.05 or len(pending) >= 64):
+                        self.packets.emit(pending)
+                        pending = []
+                        last_emit = now
+
+                if pending:
+                    self.packets.emit(pending)
+        except (SerialException, OSError, ValueError) as exc:
+            self.connection_error.emit(str(exc))
+
+
+def parse_imu_packet(line):
+    """Expected firmware format: Ax,Ay,Az,Gx,Gy,Gz,Mx,My,Mz,Qi,Qj,Qk,Qr."""
+    fields = line.split(",")
+    if len(fields) < 13:
+        return None
+    try:
+        values = tuple(float(value.strip()) for value in fields[:13])
+    except ValueError:
+        return None
+    if not all(np.isfinite(value) for value in values):
+        return None
+    return values
+
+
 class UI_IMUWindow(object):
 
     def setupIMU_UI(self, IMUWindow):
@@ -28,6 +105,20 @@ class UI_IMUWindow(object):
 
         self.thread = None
         self.worker = None
+        self._latest_line = None
+        self.validPacketCount = 0
+        self.invalidPacketCount = 0
+        self._last_status_print = time.monotonic()
+        self._last_data_time = None
+        self._last_error = None
+        self._warning_count = 0
+        self._last_valid_sample = None
+        self._previous_report_quaternion = None
+
+        # PyVista rendering configuration
+        self.render_fps = 20
+        self.render_interval = 1.0 / self.render_fps
+        self._last_render = 0.0
 
         # Central Widget
         self.centralWidget = QtWidgets.QWidget(IMUWindow)
@@ -279,96 +370,181 @@ class UI_IMUWindow(object):
         self.btnConnect.clicked.connect(self.event_connectport_clicked)
         self.btnSaveCSV.clicked.connect(self.event_savecsv_clicked)
 
-        self.serialTimer = QtCore.QTimer(IMUWindow)
-        self.serialTimer.setInterval(50)
-        self.serialTimer.timeout.connect(self.readSerialData)
+        self.displayTimer = QtCore.QTimer(IMUWindow)
+        self.displayTimer.setInterval(50)  # max 20 GUI updates per second
+        self.displayTimer.timeout.connect(self.refreshIMU_display)
+
+        # shutdown event
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(self.shutdown)
 
     def event_refreshports_clicked(self):
 
+        previous_port = self.comboSerialPort.currentText()
         self.comboSerialPort.clear()
         ports = list_ports.comports()
         for port in ports:
             self.comboSerialPort.addItem(port.device)
         if self.comboSerialPort.count() == 0:
             self.comboSerialPort.addItem("No COM ports")
+        else:
+            # Keep the previous selection; otherwise prefer the IMU's known COM5.
+            preferred = previous_port if self.comboSerialPort.findText(previous_port) >= 0 else "COM5"
+            index = self.comboSerialPort.findText(preferred)
+            if index >= 0:
+                self.comboSerialPort.setCurrentIndex(index)
 
     def event_connectport_clicked(self):
-
-        if self.serial is not None and self.serial.is_open:
-            self.serial.close()
-            self.serial = None
-            self.btnConnect.setText("Connect")
-            self.statusLabel.setText(f" ●  STATUS: DISCONNECTED.")
-            self.angleText.SetText(3, f"Angle: 0.00°")
-
-            self.labelAx.setText(f"Ax: 0.00")
-            self.labelAy.setText(f"Ay: 0.00")
-            self.labelAz.setText(f"Az: 0.00")
-            self.labelGx.setText(f"Gx: 0.00")
-            self.labelGy.setText(f"Gy: 0.00")
-            self.labelGz.setText(f"Gz: 0.00")
-            self.labelMx.setText(f"Mx: 0.00")
-            self.labelMy.setText(f"My: 0.00")
-            self.labelMz.setText(f"Mz: 0.00")
-            self.labelQi.setText(f"Qi: 0.00")
-            self.labelQj.setText(f"Qj: 0.00")
-            self.labelQk.setText(f"Qk: 0.00")
-            self.labelQr.setText(f"Qr: 0.00")
-
+        # The serial port belongs exclusively to IMUSerialReader, never this GUI.
+        if self.thread is not None:
+            if self.thread.isRunning():
+                self.btnConnect.setEnabled(False)
+                self.statusLabel.setText("● STATUS: DISCONNECTING...")
+                self.thread.stop()
             return
 
+        port = self.comboSerialPort.currentText().strip()
+        if not port or port == "No COM ports":
+            self.statusLabel.setText("● STATUS: Select a valid IMU COM port")
+            return
         try:
-            self.COMport = self.comboSerialPort.currentData()
-            if self.COMport is None:
-                self.COMport = self.comboSerialPort.currentText().split(" ")[0]
-            self.COMbaudrate = int(self.lineBaudrate.text())
+            baudrate = int(self.lineBaudrate.text().strip())
+            if baudrate <= 0:
+                raise ValueError("Baud rate must be positive")
+        except ValueError as exc:
+            self.statusLabel.setText(f"● STATUS: Invalid baud rate: {exc}")
+            return
 
-            self.serial = Serial(
-                port=self.COMport,
-                baudrate=self.COMbaudrate,
-                timeout=0.1
+        self.COMport = port
+        self.COMbaudrate = baudrate
+        self.validPacketCount = 0
+        self.invalidPacketCount = 0
+        self._warning_count = 0
+        self._last_data_time = None
+        self._last_error = None
+        self._latest_line = None
+        self._last_valid_sample = None
+        self._previous_report_quaternion = None
+        self._last_status_print = time.monotonic()
+
+        self.thread = IMUSerialReader(port, baudrate, self.IMUWindow)
+        # Force delivery to Qt's GUI thread, never the serial worker thread.
+        queued = QtCore.Qt.QueuedConnection
+        self.thread.connected.connect(self._serial_connected, queued)
+        self.thread.packets.connect(self._serial_packets, queued)
+        self.thread.warning.connect(self._serial_warning, queued)
+        self.thread.connection_error.connect(self._serial_error, queued)
+        self.thread.finished.connect(self._serial_finished, queued)
+
+        self.btnConnect.setEnabled(False)
+        self.statusLabel.setText(f"● STATUS: CONNECTING to {port}...")
+        print(f"[IMU] Opening {port} at {baudrate} baud...", flush=True)
+        self.thread.start()
+
+    def _serial_connected(self):
+        if self.thread is None or self.thread._stop_requested:
+            return
+        self.btnConnect.setEnabled(True)
+        self.btnConnect.setText("Disconnect")
+        self.statusLabel.setText(
+            f"● STATUS: CONNECTED to {self.COMport} @ {self.COMbaudrate}; waiting for packets"
+        )
+        self.displayTimer.start()
+        print(f"[IMU] Connected to {self.COMport}; expecting 13 comma-separated values per line.", flush=True)
+
+    def _serial_packets(self, lines):
+        # Called in GUI thread as a queued Qt signal; no serial access here.
+        latest_valid = None
+        for line in lines:
+            parsed = parse_imu_packet(line)
+            if parsed is None:
+                self.invalidPacketCount += 1
+                if self.invalidPacketCount <= 5:
+                    print(f"[IMU] INVALID packet #{self.invalidPacketCount}: {line[:180]!r}", flush=True)
+                continue
+
+            self.validPacketCount += 1
+            latest_valid = line
+            self._last_valid_sample = parsed
+            self._last_data_time = time.monotonic()
+            if self.validPacketCount == 1:
+                print(f"[IMU] First valid sample received on {self.COMport}: {line[:180]}", flush=True)
+            if self.csvSavingEnabled and self.csvFilePath:
+                self.startSavingterminal(line)
+
+        if latest_valid is not None:
+            self._latest_line = latest_valid  # coalesce UI updates, preserve every CSV packet
+
+        now = time.monotonic()
+        if now - self._last_status_print >= 2.0:
+            if self._last_valid_sample is not None:
+                q = self._last_valid_sample[9:13]
+                _, pitch, _ = self.quaternionToEuler(*q)
+                changed = (
+                        self._previous_report_quaternion is None
+                        or any(abs(x - y) > 1e-6 for x, y in zip(q, self._previous_report_quaternion))
+                )
+                info = (f"pitch={pitch:.2f} deg; q={tuple(round(v, 4) for v in q)}; "
+                        f"quaternion_changed={changed}")
+                self._previous_report_quaternion = q
+            else:
+                info = "no valid IMU packets received"
+            print(
+                f"[IMU] valid={self.validPacketCount}, invalid={self.invalidPacketCount}; {info}",
+                flush=True,
             )
+            self._last_status_print = now
 
-            self.btnConnect.setText("Disconnect")
-            self.statusLabel.setText(f" ● STATUS: CONNECTED to {self.COMport} @ {self.COMbaudrate} baud.")
+    def refreshIMU_display(self):
+        # Render only the most recent complete packet: <=20 FPS.
+        if self._latest_line is not None:
+            line = self._latest_line
+            self._latest_line = None
+            self.updateIMU_reading(line)
+            self.statusLabel.setText(
+                f"● STATUS: {self.COMport} connected | "
+                f"valid={self.validPacketCount} invalid={self.invalidPacketCount}"
+            )
+            print(line)
+        elif self.validPacketCount == 0 and time.monotonic() - self._last_status_print > 2.0:
+            print(
+                f"[IMU] Still waiting for valid 13-field CSV packets on {self.COMport}. "
+                f"Check firmware output, baud rate and line terminators.",
+                flush=True,
+            )
+            self._last_status_print = time.monotonic()
 
-            self.serialTimer.start()
+    def _serial_warning(self, message):
+        self._warning_count += 1
+        if self._warning_count <= 5:
+            print(f"[IMU] WARNING: {message}", flush=True)
+        self.statusLabel.setText("● STATUS: Serial framing error; see terminal")
 
-        except SerialException as e:
-            self.serial = None
-            self.statusLabel.setText(f"Connection failed:\n{e}")
+    def _serial_error(self, message):
+        self._last_error = message
+        self.statusLabel.setText(f"● STATUS: Serial error: {message}")
+        print(f"[IMU] ERROR: {message}", flush=True)
 
-    def readSerialData(self):
+    def _serial_finished(self):
+        self.displayTimer.stop()
+        self.btnConnect.setText("Connect")
+        self.btnConnect.setEnabled(True)
+        if self._last_error is None:
+            self.statusLabel.setText("● STATUS: DISCONNECTED")
+        self.thread = None
+        self._latest_line = None
+        print("[IMU] Serial reader stopped; port released.", flush=True)
 
-        if self.serial is None:
-            return
-
-        if not self.serial.is_open:
-            return
-
-        try:
-            data = self.serial.read(self.serial.in_waiting).decode("utf-8", errors="ignore")
-
-            if not data:
-                return
-
-            self.rxBuffer += data
-
-            while "\n" in self.rxBuffer:
-                line, self.rxBuffer = self.rxBuffer.split("\n", 1)
-                line = line.rstrip("\r").strip()
-
-                if not line:
-                    continue
-
-                self.updateIMU_reading(line)
-
-                if self.csvSavingEnabled and self.csvFilePath:
-                    self.startSavingterminal(line)
-
-        except SerialException as error:
-            self.statusLabel.setText(f"Serial reading error: {error}")
-            self.serialTimer.stop()
+    def shutdown(self):
+        """Release COM5 on normal application exit (no GUI access from worker)."""
+        if hasattr(self, "displayTimer"):
+            self.displayTimer.stop()
+        if self.thread is not None and self.thread.isRunning():
+            self.thread.stop()
+            if not self.thread.wait(2000):
+                print("[IMU] WARNING: serial reader did not exit within 2 seconds.", flush=True)
+                # Do not forcibly terminate a QThread while it owns a serial port.
 
     def event_savecsv_clicked(self):
 
@@ -405,79 +581,37 @@ class UI_IMUWindow(object):
             )
 
     def startSavingterminal(self, line):
-
-        self.machinetime = int(time.time())
-
-        parts = line.split(",")
-
-        if len(parts) < 13:
+        """Save each valid IMU sample in exact firmware-field order."""
+        sample = parse_imu_packet(line)
+        if sample is None or not self.csvFilePath:
             return
 
-        ax = parts[0].strip()
-        ay = parts[1].strip()
-        az = parts[1].strip()
-        gx = parts[0].strip()
-        gy = parts[1].strip()
-        gz = parts[1].strip()
-        mx = parts[0].strip()
-        my = parts[1].strip()
-        mz = parts[1].strip()
-        qi = parts[0].strip()
-        qj = parts[1].strip()
-        qk = parts[1].strip()
-        qr = parts[0].strip()
-
-        csv_line = f"{self.machinetime},{ay},{az},{gx},{gy},{gz},{mx},{my},{mz},{qi},{qj},{qk},{qr}\n"
-
+        row = f"{time.time():.3f}," + ",".join(f"{value:.9g}" for value in sample) + "\n"
+        header = "Timestamp,Ax,Ay,Az,Gx,Gy,Gz,Mx,My,Mz,Qi,Qj,Qk,Qr\n"
         try:
             if not self.csvHeader:
                 with open(self.csvFilePath, "w", encoding="utf-8") as file:
-                    file.write("Timestamp, Ax, Ay, Az,Gx, Gy, Gz, Mx, My, Mz, Qi, Qj, Qk, Qr\n")
-                    file.write(csv_line)
-
+                    file.write(header)
+                    file.write(row)
                 self.csvHeader = True
             else:
                 with open(self.csvFilePath, "a", encoding="utf-8") as file:
-                    file.write(csv_line)
-            return
-
-        except Exception as error:
-
+                    file.write(row)
+        except OSError as exc:
             self.csvFilePath = None
             self.csvSavingEnabled = False
             self.csvHeader = False
-
             QtWidgets.QMessageBox.warning(
-                self.IMUWindow,
-                "CSV File Error",
-                f"Could not save data to the CSV file.\n\n{error}"
+                self.IMUWindow, "CSV File Error", f"Could not save data to the CSV file.\n\n{exc}"
             )
-            return
 
     def updateIMU_reading(self, line):
-
-        parts = line.split(",")
-
-        if len(parts) < 13:
+        """Update numerical labels and the pitch-only PyVista visualization."""
+        sample = parse_imu_packet(line)
+        if sample is None:
             return
 
-        try:
-            ax = float(parts[0].strip())
-            ay = float(parts[1].strip())
-            az = float(parts[2].strip())
-            gx = float(parts[3].strip())
-            gy = float(parts[4].strip())
-            gz = float(parts[5].strip())
-            mx = float(parts[6].strip())
-            my = float(parts[7].strip())
-            mz = float(parts[8].strip())
-            qi = float(parts[9].strip())
-            qj = float(parts[10].strip())
-            qk = float(parts[11].strip())
-            qr = float(parts[12].strip())
-
-        except ValueError:
-            return
+        ax, ay, az, gx, gy, gz, mx, my, mz, qi, qj, qk, qr = sample
 
         self.labelAx.setText(f"Ax: {ax:.2f}")
         self.labelAy.setText(f"Ay: {ay:.2f}")
@@ -493,7 +627,10 @@ class UI_IMUWindow(object):
         self.labelQk.setText(f"Qk: {qk:.2f}")
         self.labelQr.setText(f"Qr: {qr:.2f}")
 
-        self.upload3dplot(qi, qj, qk, qr)
+        now = time.monotonic()
+        if now - self._last_render >= self.render_interval:
+            self.upload3dplot(qi, qj, qk, qr)
+            self._last_render = now
 
     def plot3D(self):
 
