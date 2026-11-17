@@ -166,11 +166,9 @@ After the windows open, select the appropriate COM port in **each** GUI and clic
 ## Serial connections
 
 | Interface | Hardware | Example port | GUI default baud rate |
-|---|---|---|---|
-| Motor Control | Arduino UNO R4 / compatible motor controller | `COM3` | `2000000` |
-| IMU Monitor | Microcontroller reading a BNO085 | `COM5` or `COM8` | `115200` |
-
-**COM numbers are examples only.** Check Windows Device Manager to identify the correct port. Close other programs using that port before connecting.
+|---|---|--------------|---|
+| Motor Control | Arduino UNO R4 / compatible motor controller | `COM5`       | `2000000` |
+| IMU Monitor | Microcontroller reading a BNO085 | `COM8`       | `115200` |
 
 The IMU reader expects a comma-separated line of **13 numeric fields** in this order:
 
@@ -187,17 +185,7 @@ Install PyInstaller in the virtual environment:
 ```powershell
 python -m pip install pyinstaller
 ```
-
-From the project root, create a diagnostic build **with a visible console**:
-
-```powershell
-pyinstaller --clean --noconfirm --onefile --console `
-  --name StepperMotorControl `
-  --add-data "utils/stylesheet.qss;utils" `
-  RFCControl_main.py
-```
-
-Once both windows have been tested successfully, build the windowed version with the optional custom icon:
+Build the windowed version with the optional custom icon:
 
 ```powershell
 pyinstaller --clean --noconfirm --onefile --windowed `
@@ -206,58 +194,6 @@ pyinstaller --clean --noconfirm --onefile --windowed `
   --add-data "utils/stylesheet.qss;utils" `
   RFCControl_main.py
 ```
-
-The output is placed in `dist/StepperMotorControl.exe`.
-
-**Important for packaged builds:** When frozen, `sys.executable` points to `StepperMotorControl.exe`, **not** `python.exe`. The launcher must spawn itself with `--motor` or `--imu` and must not pass a Python script path or interpreter-only flags (such as `-u`). Use the frozen-aware version of `RFCControl_main.py` when packaging.
-
-The `--icon` option embeds an icon into the `.exe`. Showing that same icon inside the PyQt windows requires separate runtime `QIcon` setup and bundling the icon as data.
-
-## Troubleshooting
-
-### An `.exe` does not open
-
-First build with `--console` instead of `--windowed`, then run the executable from PowerShell:
-
-```powershell
-.\dist\StepperMotorControl.exe --motor
-.\dist\StepperMotorControl.exe --imu
-```
-
-Check any reported Python import, Qt plugin, or VTK/OpenGL error. A successful PyInstaller build does **not** confirm that the application runs correctly.
-
-### IMU values do not update
-
-- Confirm the correct COM port and `115200` baud rate in the IMU window.
-- Test the IMU window alone: `python RFCControl_main.py --imu`.
-- Check whether serial packets contain 13 numeric fields and whether the quaternion changes when the sensor is moved.
-- An increasing valid-packet counter does **not**, by itself, prove that new sensor measurements are being generated.
-
-### IMU freezes when motor power is enabled
-
-If the issue occurs specifically when the motor supply or driver is energized, investigate electrical interference, grounding, power integrity, USB cabling, and the IMU-to-microcontroller interface. Process isolation cannot correct a physical communication problem.
-
-**Electrical safety:** Do not bypass protective earth or modify energized mains wiring. Use qualified personnel for inspections involving the 220 V power system.
-
-## Releases and repository files
-
-Compiled Windows executables may exceed GitHub's **100 MB per-file limit for ordinary Git repository objects**. Do not commit the PyInstaller executable or build output to the repository.
-
-Suggested `.gitignore` entries:
-
-```gitignore
-.venv/
-__pycache__/
-*.py[cod]
-.idea/
-build/
-dist/
-*.exe
-```
-
-Publish the compiled `.exe` as a downloadable asset in [GitHub Releases](https://github.com/EvertonTrentoJR/RFC_QTapp/releases), while keeping Python source files, documentation, and the stylesheet in Git.
-
-If a large executable was previously committed, removing it from the working directory or adding `.gitignore` is not enough: the oversized file must also be absent from the **unpushed Git history** being sent to GitHub.
 
 ## Contributors
 
