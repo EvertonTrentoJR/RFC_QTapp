@@ -36,3 +36,7 @@ Thumbs.db
 .mypy_cache/
 
 testQt/
+dist/
+
+# Executables
+*.exe

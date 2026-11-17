@@ -49,13 +49,42 @@ def run_window(mode: str) -> int:
     return app.exec_()
 
 
-def launch_process(mode: str) -> subprocess.Popen:
-    """Start a second Python interpreter, isolated from the other GUI."""
-    return subprocess.Popen(
-        [sys.executable, "-u", str(Path(__file__).resolve()), f"--{mode}"],
-        cwd=str(BASE_DIR),
-    )
+# def launch_process(mode: str) -> subprocess.Popen:
+#     """Start a second Python interpreter, isolated from the other GUI."""
+#     return subprocess.Popen(
+#         [sys.executable, "-u", str(Path(__file__).resolve()), f"--{mode}"],
+#         cwd=str(BASE_DIR),
+#     )
 
+
+def launch_process(mode: str) -> subprocess.Popen:
+    """Launch a GUI process from Python or PyInstaller EXE."""
+
+    if mode not in ("motor", "imu"):
+        raise ValueError(f"Unknown mode: {mode}")
+
+    if getattr(sys, "frozen", False):
+        # Running as a compiled executable
+        command = [
+            sys.executable,
+            f"--{mode}"
+        ]
+        working_directory = Path(sys.executable).resolve().parent
+
+    else:
+        # Running as a normal Python script
+        command = [
+            sys.executable,
+            "-u",
+            str(Path(__file__).resolve()),
+            f"--{mode}"
+        ]
+        working_directory = BASE_DIR
+
+    return subprocess.Popen(
+        command,
+        cwd=str(working_directory)
+    )
 
 def stop_processes(processes: dict) -> None:
     """Best-effort shutdown if the launcher is interrupted."""
